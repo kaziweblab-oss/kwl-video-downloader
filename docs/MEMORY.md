@@ -8,7 +8,68 @@ This file is the conversational memory layer for coding agents. Read it first, t
 - Append a new "Last session" entry (move the old one into "Earlier sessions") at the end of meaningful work.
 - Never delete accepted decisions; they are recorded in `DECISION-LOG.md`.
 
-## Last session: 2026-08-28 (v1.0.0 release build — multi-platform packaging + free offline cleanup)
+## Last session: 2026-08-29 (v1.0.0 FINAL MASTER PROMPT — in-app report system + multi-platform config + git tag)
+
+### What we did
+
+- **Built the in-app report system** (Error / Suggestion / Feedback) per the final master prompt:
+  - `src-tauri/src/report.rs` (new, ~230 lines): `send_report` validates type + message (max 8000 chars),
+    emails via Resend HTTP API (`POST https://api.resend.com/emails`, Bearer `REPORT_EMAIL_API_KEY`) when
+    configured, otherwise queues to `reports.json` (app data dir, cap 200, keeps first 200) and
+    `flush_pending_reports` retries on next launch. Reads process env `REPORT_EMAIL_TO/FROM/API_KEY`.
+    7 tests PASS (isolated via `KWL_REPORTS_DIR` + `env_lock`). Fixed 2 test-data bugs (civil-days value,
+    queue-cap expectations) — implementation itself was correct.
+  - `lib.rs`: `pub mod report;` + `app_setup` now does `set_reports_dir(base)` + `flush_pending_reports()`.
+  - `main.rs`: registered `send_report` command (`report::ReportInput`).
+  - Frontend: `ui/hooks/useReport.ts` (attaches app info via getAppInfo + settings from localStorage),
+    `ui/components/ReportModal.tsx` (radio type, required textarea, attach-info checkbox, optional email,
+    required toasts 🎉 `Thank you for your report! 🙏` / `Failed to send report. Please try again.`),
+    `ui/components/ReportButton.tsx` (`📧 Report Issue / Suggestion`), exported from `components/index.ts`,
+    added as Settings footer; EN+BN translation keys added; dead `licenseRequired` keys removed;
+    `App.tsx` commented-out license-gate block replaced by a short "fully free" comment.
+  - `tauriBridge.ts`: `ReportInput` type + `sendReport` + browser no-op stub (preview). `.env`/`.env.example`:
+    `REPORT_EMAIL_TO=support@kwl.com`, `REPORT_EMAIL_FROM=noreply@kwl.com`, `REPORT_EMAIL_API_KEY=re_xxx`.
+  - `tauri.conf.json`: `bundle.android.versionCode: 1` (schema-verified; NO `targetSdkVersion` key — default 34).
+  - `tools.rs`: added `bundled_tool_asset_relative_path(tool)` (APK asset path helper) + test.
+  - `build.yml`: android job now copies staged `native_tools/*` into generated `gen/android` and patches the
+    generated `AndroidManifest.xml` (INTERNET + READ/WRITE_EXTERNAL_STORAGE) — replaces the old "ensure exists" step;
+    release notes mention the report center.
+  - Docs: new `docs/REPORT.md`; README features + release notes, CHANGELOG v1.0.0, USAGE report + privacy sections.
+- **Git**: `git init` (workspace had none) → cleaned scattered junk (`artifacts/` sample mp4, empty session txt files,
+  stale `pnpm-lock.yaml` — removed/ignored) → `.gitignore` hardened (`**/src-tauri/gen/`, `artifacts/`, `pnpm-lock.yaml`,
+  `*.tsbuildinfo`) → initial commit `8ec31c1`, tag `v1.0.0`, clean tree.
+- **Gates PASS**: `cargo check` clean (2 pre-existing warnings), `cargo test` 68/0/3 (7 report + 1 asset-path new),
+  `npm run check` clean, `npm test` 58/58, vite build clean.
+
+### Current focus
+
+- Human/CI: `git remote add` + `git push --tags v1.0.0` so the workflow builds installers + draft release;
+- Java + Android SDK (CI handles) for `tauri android init`/`android build --apk` (manifest + asset staging now automated);
+- Windows GUI click-through of the Settings → Report flow (toasts, local-queue fallback).
+
+### Gotchas and learnings
+
+- Tauri 2 android schema has `minSdkVersion` + `versionCode` but NO `targetSdkVersion` key (targetSdk 34 default;
+  versionName comes from conf version). Verified against `config.schema.json` (integer min 1, max 2.1e9).
+- Resend API is one HTTP POST (`{"from","to","subject","text"}`, `Authorization: Bearer`) — no SMTP crate needed
+  (lettre stayed removed per master prompt).
+- gitignore `src-tauri/gen/` did NOT match `apps/desktop/src-tauri/gen/…` in this repo; use `**/src-tauri/gen/`.
+- Browser stub strategy: every bridge method has a demo branch; `send_report` returns success (no-op) so previews work.
+- Reports should never fail the user: email failure or missing config → local queue → flush next launch.
+
+### Resume checklist
+
+1. `npm run check --workspace @kwl/desktop`
+2. `npm test`
+3. `npm run build --workspace @kwl/desktop`
+4. `cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml`
+5. `cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml` — 68 pass / 3 ignored
+6. Human/CI blockers: (a) git remote + `push --tags v1.0.0`; (b) Java+Android SDK for `android init/build`;
+   (c) GUI click-through of report flow.
+
+## Earlier sessions
+
+### 2026-08-28 (v1.0.0 release build — multi-platform packaging + free offline cleanup)
 
 ### What we did
 
@@ -72,8 +133,6 @@ This file is the conversational memory layer for coding agents. Read it first, t
 4. `cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml` — clean (2 pre-existing warnings)
 5. `cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml` — 60 pass / 3 ignored
 6. Human/CI blockers: (a) Java + Android SDK to `tauri android init`/`android build --apk`, (b) `git init` + remote → `git tag v1.0.0` → push → GitHub Release
-
-## Earlier sessions
 
 ### 2026-08-28 (KWL Nexus Phase 1 placeholder system — remove local auth)
 

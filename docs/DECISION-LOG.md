@@ -1,5 +1,20 @@
 # Decision Log
 
+## 2026-08-29
+### Decision: v1.0.0 in-app report system (Error / Suggestion / Feedback) with email + local fallback queue
+Reports are sent from **Settings → "📧 Report Issue / Suggestion"**. The frontend (`useReport.ts`, `ReportModal.tsx`, `ReportButton.tsx`) sends a typed payload through the `send_report` Tauri command backed by `src-tauri/src/report.rs`. Delivery uses a Resend-style HTTP POST to `https://api.resend.com/emails` (Bearer API key) reading process env `REPORT_EMAIL_TO` / `REPORT_EMAIL_FROM` / `REPORT_EMAIL_API_KEY` — no SMTP crate (lettre stayed removed per the master prompt). If email is not configured or delivery fails, the report is queued to `reports.json` (app data dir, capped at 200, oldest preserved) and `flush_pending_reports` retries at next launch. A report always returns `Ok` to the UI (either emailed or queued); UI shows the exact required toasts (success `Thank you for your report! 🙏`, failure `Failed to send report. Please try again.`). Optional "attach diagnostic info" prepends app name/version/platform/environment + settings.
+
+### Reason
+- The master prompt requires a report center and an email fallback; users of a free/offline app need a support channel that never errors out.
+- Keeping email out of the Rust dependency tree and using a simple HTTP API means no extra Tauri plugin or heavy crate.
+
+### Consequence
+- 7 new backend tests (validation, ISO-8601 timestamp, local fallback, queue cap, flush-without-email) isolated via `KWL_REPORTS_DIR` + `env_lock`; browser (no Tauri) `send_report` is a no-op stub for previews.
+- `bundle.android.versionCode: 1` added (verified against Tauri CLI schema: `minSdkVersion`/`versionCode` exist, no `targetSdkVersion` key — default targetSdk 34; versionName from conf version).
+- CI android job now copies staged `native_tools/*` binaries into the generated `gen/android` project and patches the generated `AndroidManifest.xml` (INTERNET, READ/WRITE_EXTERNAL_STORAGE) after `tauri android init`.
+- Added `tools::bundled_tool_asset_relative_path` (asset-path helper for Android runtime extraction) with a test.
+- Git repo initialized; initial commit `8ec31c1`, tag `v1.0.0` — push/release still blocked (no remote).
+
 ## 2026-08-25
 ### Decision: explicit selection at every step + FPS as a source-strict control
 Analyze no longer auto-selects the analyzed media: the card must be clicked (or marked), and each configuration section renders only after its prerequisite — Media Type after media selection, Format after type, Quality after format, Resolution (video) after quality, FPS (video) after resolution. Any upstream change resets all dependent values. Video Quality is the single honest "Best" (the source exposes no other meaningful quality axis), Resolution is the flat source-exact dimension list, and FPS options are derived per-dimension from analyzed formats — the FPS section is hidden entirely when the source exposes no fps data, and Add requires FPS only when those options exist. The handleAddToQueue DEMO fallback was removed: with no explicit selection Add shows "Please select an analyzed video first." and example.com/video can never enter the queue. Native `validate_download_request_input` mirrors the rules (video requires resolution; fps requires resolution; zero fps rejected).
