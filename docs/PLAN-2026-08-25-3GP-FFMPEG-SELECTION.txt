@@ -1,0 +1,113 @@
+================================================================================
+ IMPLEMENTATION PLAN - 3GP VIA FFMPEG + EXPLICIT SELECTION ENFORCEMENT
+ Date: 2026-08-25
+ Project: KWL Video Downloader (Tauri 2 + React + TypeScript + Rust)
+ Status: APPROVED (user confirmed ffmpeg transcode approach)
+================================================================================
+
+--------------------------------------------------------------------------------
+1. SUMMARY
+--------------------------------------------------------------------------------
+Three work items approved for implementation:
+  1. Block downloads without an explicitly selected analyzed video
+  2. 3GP always available - ffmpeg transcode when the source lacks native 3GP
+  3. Previously approved source-strictness cleanup (no invented resolutions)
+
+All existing features must keep working: real-time progress, true pause/resume,
+cancel, retry, yt-dlp analysis, ffprobe validation, persistent history,
+file-synced history, duplicate guard, sequential queue.
+
+--------------------------------------------------------------------------------
+2. WORK ITEM 1 - EXPLICIT SELECTION ENFORCEMENT (bug fix)
+--------------------------------------------------------------------------------
+Problem: analyze auto-selects the latest video (highlight easy to miss), so
+users press Add thinking nothing is selected - and a download starts. Also
+handleAddToQueue has a DEMO_ANALYSIS fallback that can queue example.com/video.
+
+Fix:
+  1. handleAnalyze no longer auto-selects a card; the analyzed list grows and
+     the user must click a card (or mark it) to select. Preview + config
+     unlock only after explicit selection; Add stays disabled otherwise.
+  2. handleAddToQueue DEMO fallback removed - with no selection it shows
+     "Please select an analyzed video first" and returns. example.com/video
+     can never enter the queue again.
+  3. Defense-in-depth: canAddToQueue already gates on flowAnalysis (null
+     pre-selection) - unchanged.
+
+--------------------------------------------------------------------------------
+3. WORK ITEM 2 - 3GP ALWAYS AVAILABLE VIA FFMPEG TRANSCODE
+--------------------------------------------------------------------------------
+Flow when the source has NO native 3GP:
+  yt-dlp downloads best mp4/webm (temp workspace, height filter applied)
+  -> new job status "converting"
+  -> ffmpeg transcode -> .3gp
+  -> ffprobe validation -> completed (single history entry, unchanged)
+
+Native (lib.rs):
+  - DownloadRequestInput gains "transcode: Option<bool>" (serde default).
+    Frontend sets true when 3GP is selected AND the source lacks native 3GP.
+  - Transcode path uses the default best selector (height filter) with
+    --merge-output-format mp4, then:
+      ffmpeg -y -i in.mp4 -c:v mpeg4 -b:v 300k -vf scale=-2:H
+             -c:a aac -ar 16000 -ac 1 out.3gp
+    (mpeg4 + aac = ffmpeg built-in encoders, present in every build;
+     AMR-NB avoided because many builds lack libopencore-amrnb)
+  - ffmpeg PID is tracked in the job during conversion so Cancel (taskkill /T /F)
+    works mid-conversion; temp cleanup + single history entry unchanged.
+  - Source HAS native 3GP -> current direct path (no transcode).
+  - New "converting" status: cart shows "Converting / konvert hocche",
+    amber/cyan dot, EN/BN labels; getCartItemStatus mapping added.
+  - Runtime proof required: transcode artifacts/sample-test.mp4 with the real
+    ffmpeg, validate the .3gp output with ffprobe, record the evidence.
+
+Frontend:
+  - Video format list ALWAYS includes 3GP (next to MP4/WEBM).
+  - 3GP + source lacks it -> transcode: true in the download request.
+  - Resolution section for 3GP-transcode shows the tier's analyzed dimension
+    as the scale target (scale=-2:H keeps aspect, even width).
+
+--------------------------------------------------------------------------------
+4. WORK ITEM 3 - SOURCE-STRICTNESS CLEANUP (previously approved)
+--------------------------------------------------------------------------------
+  - parseAnalysisResponse: remove the DEMO videoResolutions fallback - if the
+    source exposes no dimensions the list stays empty (never invented).
+  - Dimension-less sources: Video Quality = single "Best", Add works without a
+    dimension (native downloads best quality, height filter omitted).
+  - Pre-analysis: Quality/Resolution sections show helper text instead of
+    invented tier/dimension buttons.
+
+--------------------------------------------------------------------------------
+5. TESTS
+--------------------------------------------------------------------------------
+  Native:
+    - transcode decision logic (container 3gp + flag)
+    - ffmpeg argument builder (input/output/height)
+    - mark_job_converting state (does not touch history, keeps PID)
+    - transcode path selector (no ext=3gp filter, merge to mp4)
+  Frontend:
+    - 3GP always present in video format options
+    - transcode flag computation (selected 3GP + source support)
+    - SSR: pre-analysis helper text instead of invented buttons
+  Runtime:
+    - real ffmpeg transcode + ffprobe validation evidence
+
+--------------------------------------------------------------------------------
+6. VALIDATION
+--------------------------------------------------------------------------------
+  cargo check, cargo test
+  npm run check, npm test -- --run, npm run build --workspace @kwl/desktop
+  npx tauri dev (launch + frontend HTTP 200)
+  ffmpeg runtime transcode proof (real command + ffprobe)
+  GUI walk: HUMAN_REQUIRED (WebView not automatable) - Phase 3 stays open.
+
+--------------------------------------------------------------------------------
+7. NOTES
+--------------------------------------------------------------------------------
+  - 3GP transcode quality is intentionally limited by the format (mpeg4+aac);
+    this was accepted by the user.
+  - Docs to update after implementation: DECISION-LOG.md, PROJECT-STATE.md,
+    MEMORY.md, plus a WORK-DETAILS .txt report.
+
+================================================================================
+ END OF PLAN
+================================================================================

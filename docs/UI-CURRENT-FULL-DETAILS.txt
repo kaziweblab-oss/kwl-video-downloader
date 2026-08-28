@@ -1,0 +1,237 @@
+================================================================================
+KWL VIDEO DOWNLOADER - CURRENT FULL UI DETAILS (TEXT)
+================================================================================
+Generated: 2026-08-28
+Stack: Tauri 2 (Rust) + React + TypeScript + Vite + Tailwind CSS 3
+Target: Windows desktop (minWidth 380, minHeight 520)
+Theme: Dark (navy #030b16 → #07111f gradient, panel bg rgba(15,23,42,0.70), sky #38bdf8)
+All pages are rendered inside a single Tauri WebView with a sidebar navigation.
+No separate browser routes - View state is managed via useView() (downloader|queue|history|settings|about).
+================================================================================
+
+1. GLOBAL SHELL & LAYOUT
+--------------------------------------------------------------------------------
+Window: Tauri 2, Vite dev server 5173/5174, front served from apps/desktop/dist
+Root: html/body/#root  min-height/width 100%, background radial sky 0.18 + linear navy gradient,
+      text #e2e8f0, font Segoe UI/Inter, weight 500, antialiased.
+Layout: max-width kwl-content 1180px, sidebar min 240px (not shown in code but via viewStore)
+        Main container max-[520px]:px-3 tighter, outer Panel cards with rounded-2xl
+        border-blue-400/20 bg-slate-900/70 shadow 0 10px 24px, gap 5 between sections
+Navigation: Sidebar/viewStore - Downloader (default), Queue, History, Settings, About
+Top status: getAppInfo() → "KWL Video Downloader 0.1.0" or Fallback
+Toast: Fixed inset-0 z999 centered, backdrop blur 6px slate-950/60, window max-w 420px rounded-2xl
+       border slate-700/50 bg-slate-900/95, icon 9x9 (emerald for success, red for error),
+       title Success/Failed, message break-words, close X, auto-close duration 1100ms default
+       but already-download uses 3800ms, partial duplicate 3000ms, close via backdrop or X
+       Animation toastIn 0.22s ease-out translateY 10px→0 scale 0.96→1
+Language: useLanguage() EN/BN, persists via settingsStore, affect t.* keys (autoDetectHint etc.)
+Settings persistence: settingsStore maxConcurrent (1-5), language, output dir via downloadDir() → Downloads/KWL Video Downloader
+Responsive: Tailwind breakpoints max-[760px] (stack), max-[520px] (thumb 60px), min-[761px] grid, custom 760/520 system
+
+2. DOWNLOADER PAGE (View: downloader) — COMPOSED OF 3 SECTIONS
+--------------------------------------------------------------------------------
+File: DownloaderView.tsx (UrlPanel + AnalyzedMediaList + Configuration)
+
+  2.1 URL PANEL (UrlPanel.tsx)
+  --------------------------------
+  Panel with PanelHeader label URL, action status pill (sky 0.72rem uppercase tracking 0.12em)
+  Row: flex wrap gap3 max-[760px]:flex-col
+    - Input: type url, id url, placeholder https://example.com/video, value=url, onChange, pr 92px
+      class w-full min-w 200px rounded-xl border slate-400/40 bg slate-900/80 px4 py0.9rem text slate-50
+      focus border sky 90% + shadow 0 0 0 3px rgba(56,189,248,0.18)
+      Inner Paste button: absolute right 2.5 top 50% -translate-y-1/2 rounded 10px border sky 30% bg cyan 30% px 0.8rem py 0.45rem text xs bold sky 100 hover bg 50%
+    - Analyze button: gradient 135deg #38bdf8→#2563eb px 1.2rem py 0.9rem rounded-xl border transparent bold slate-50 hover -translate-y-px disabled opacity60 pointer-events-none
+      Text t.analyze / t.analyzing (isLoading), disabled when !isAnalyzableUrl(url) || isLoading
+    - Clear button: conditional if url truthy, border slate 30% bg slate 800/90 same padding, onClear sets url ''
+  Info bar: mt4 mb3 flex gap2.5 rounded-xl border sky 20% bg sky 10% px3.5 py2.5, icon 6x6 sky 20% bg 20% border, text 0.78rem leading4 medium sky 100 = t.autoDetectHint
+  Hint: error ? red-300 mt3.5 0.95rem error : slate-400 t.secureValidationHint
+  Status/error derived from App.tsx getFriendlyErrorMessage (sanitized, no raw invoke/tauri)
+
+  2.2 ANALYZED MEDIA LIST (AnalyzedMediaList.tsx — inferred from App.tsx props)
+  --------------------------------
+  Section mt-5
+  Props: analyses[], selectedMediaIds[], activeMediaId, onMediaCardSelect, onRemoveAnalysis, onRemoveSelection, onMarkAll/UnmarkAll/ClearAll, activeMediaCount
+  Header: Title + count badge (sky 300/25 bg cyan 20% min-h6 rounded-full px 0.55rem py0.18rem 0.7rem bold)
+  Actions when selectedMediaIds.length>0: Remove selected (SECONDARY), Mark All / Unmark All / Clear All (trash)
+  Grid: list of cards, each card grid-cols [auto 64px minmax(0,1fr) auto] (60px on ≤520px), gap3, rounded-2xl border blue 20% bg slate 900/70 p3
+    - Checkbox/mark toggle (selectedMediaIds includes id)
+    - Thumbnail 64px (60px mobile) via Thumbnail component (md, fallback mediaFallback)
+    - Details: title ellipsis whitespace-nowrap slate-50 text-sm, author·duration·host slate-400 0.78rem, format badges
+    - Remove X icon (onRemoveAnalysis)
+  Click: toggles selectedMediaIds, sets activeMediaId to last selected (or first if none)
+  Empty: no cards, shows placeholder? (not in this view, but overall)
+  Note: Initially after analyze, selectedMediaIds includes new id, activeMediaId set to it, so Configuration shows its details.
+
+  2.3 CONFIGURATION WIZARD (Configuration.tsx)
+  --------------------------------
+  Panel with Step chain (horizontal, overflow-x-auto, gap1, pb2)
+    Steps: array wizardSteps = getStepsForMedia(mediaType) → Video: ['media','type','format','quality','output'] (5), Audio same 5 (no dimension separate)
+    Labels: STEP_LABELS media→MEDIA etc.
+    Each step button: rounded-full border px3 py1.5 text xs bold tracking-wide whitespace-nowrap
+      - isCurrent (step===wizardStep): border sky 300 bg sky 20% text sky 100 shadow 0 0 0 2px rgba(56,189,248,0.2) scale 1.02, dot • bg sky 400 text slate 900
+      - completed (targetIdx < curIdx && isStepCompletedByData): border sky 40% bg sky 15% text sky 200 hover 20% check ✓ bg sky 500
+      - future (isFuture): border slate 700 bg slate 800/50 text slate 500 cursor-not-allowed opacity60 number 1..5 border slate 600
+      - canClick (targetIdx < curIdx): cursor-pointer hover brightness
+    Connectors: mx1 h0.5 w6 rounded, bg sky 50% if all prior steps completedByData else bg slate 700
+    Logic: isStepCompletedByData checks mediaSelected, mediaTypeChosen, formatChosen, qualityChosen, outputDirectory trim
+           isStepCompleted (for chain) is position-aware: targetIdx < curIdx && isStepCompletedByData
+           canProceedCurrent = isStepCompletedByData(wizardStep)
+  Content card: mt4 rounded-xl border slate 700/30 bg slate 900/40 p4 min-h 140px
+    Per wizardStep renderStepContent():
+      media: p selectMediaTitle bold slate 300 mb3, p selectMediaDesc 0.9rem slate 400
+      type: p mediaType bold, flex gap3 [Video, Audio] as OptionCard selected={mediaTypeChosen && mediaType===option} onClick onMediaTypePick
+            OptionCard: rounded-xl border, selected border sky 400 bg sky 15% shadow, not selected slate 700 bg 70% hover
+            Initially Video selected (mediaTypeChosen:true) due to useState(true) + auto logic
+      format: p format bold, if !mediaTypeChosen → p selectTypeFirst, else grid auto-fit minmax 120px 1fr of formatOptionsFor(mediaType,flowAnalysis) as OptionCard selected={selectedFormat===format}
+            Initially first format auto-selected (MP4 for Video, MP3 for Audio) via App.tsx useEffect + synchronous handleMediaTypePick
+      quality: p quality bold, if !formatChosen → p selectFormatFirst,
+               else if Audio: grid auto-fit 110px of qualityOptionsFor (Best, 320 kbps...) as OptionCard
+               else Video: grid 110px of qualityOptionsFor (tiers 1080p etc.) + if selectedQuality then dimensions block:
+                 tiers = qualityTiersWithDimensions(flowAnalysis), selectedTier = find label
+                 if dimensions.length===1: single button rounded-xl border sky 400 bg 15% shadow w-full px4 py3, shows dimensionLabel (e.g., 1920×1080) + width×height + QCIF note if 176×144
+                 else multi: grid 150px of dimension buttons, active border sky 400 bg 15% else slate 700/70 hover, QCIF ring emerald 20%
+                 qcifNote text xs slate 500
+               Size display (NEW): if qualityChosen && selectedSize → mt4 rounded-lg border slate 700/50 bg 800/50 p3
+                 if sizeKnown && totalSize → Video: 245 MB • Audio: 8.4 MB • Total: 253 MB / Size: 253 MB (formatBytesForDisplay)
+                 else if isApprox → amber Estimated size: ~253 MB
+                 else Unknown slate 400
+      output: p outputFolder bold, flex gap3 max-[760px]:flex-col, input w-full min 200px rounded-xl border slate 400/40 bg 900/80 px4 py0.9rem slate 50 focus sky, Browse button shrink-0 rounded-xl border slate 30% bg 800 px5 py0.9rem text sm bold slate 200 hover sky 40% bg 700
+               Size display same as quality (if selectedSize)
+  Footer: mt5 flex justify-between gap3
+    Left: Back button if !isFirstStep → rounded-xl border slate 30% bg 800 px5 py2.5 text sm bold slate 200 hover sky 40% bg 700
+    Right: Go to Queue if queueCount>0 && onGoToQueue && !goToQueueDismissed → border sky 40% bg 800 px5 py2.5 text sm bold sky 300 hover sky 400 bg 10%
+           Add to Queue if isLastStep → onAddToQueue aria-disabled={!canAdd} rounded-xl px5 py2.5 text sm bold slate 50 transition bg slate 700 opacity90 if !canAdd else gradient sky→blue hover -translate-y-px shadow
+           Next if not last → onWizardNext disabled={!canProceedCurrent} bg slate 700 opacity60 else bg sky 500 hover sky 400 border sky 30% shadow
+           canAdd = canAddToQueue({mediaType,format,quality,selectedDimension}, flowAnalysis) where Video requires tier+dimension (if multi), Audio just format+quality
+  Error: if error → p mt3.5 0.95rem red 300
+
+Overall Downloader flow: URL → Analyze (valid http/https only) → card auto-selected → MEDIA step (already selected) → TYPE (Video pre-selected) → FORMAT (first auto) → QUALITY (first tier/quality auto, dimension auto if single) → OUTPUT (folder + size) → Add (clears url+analyses+wizard, shows toast, queueCount++)
+
+3. QUEUE PAGE (QueueView.tsx, view=queue)
+--------------------------------------------------------------------------------
+Panel header: flex justify-between wrap
+  Left: Queue title + badge sky 300/25 bg cyan 20% min-h6 rounded-full px 0.55rem 0.7rem bold {cart.length} items
+  Right: Download pending + badge amber 400/25 bg amber 20% {pendingCount} pending where pending = Pending|Queued|Downloading|Paused|Converting|Processing|Validating
+Actions mt3 flex wrap gap2:
+  Pause All (disabled !hasDownloading) amber 30% bg 20% hover 30% icon 2 rects
+  Resume All (disabled !hasPaused) emerald 30% bg 20%
+  Cancel All (disabled !hasActive) red 30% bg 20%
+  Clear Queue (disabled cart.length===0) slate 400/30 bg 700/40 hover 600/50 icon trash
+Empty state: if cart.length===0 → Panel with same header + actions disabled + grid center Icon empty + p queueEmpty slate 400 0.95rem pt5
+
+Non-empty: ul mt4 grid gap3 p0
+  Each li: grid cols [64px minmax(0,1fr) auto] (60px mobile) gap3 rounded-2xl border blue 20% bg 900/70 p3 shadow 10px 24px
+    Left: Thumbnail 64px md, fallback mediaFallback
+    Middle: grid gap1 min-w0
+      title: overflow ellipsis whitespace-nowrap slate-50 text-sm
+      meta: slate-400 0.78rem `format · quality · W×H · MediaType`
+      statusLine: slate-300 0.78rem via buildStatusLine(item) + getDisplayProgress(item)
+        Queued/Pending → Queued (+ Size: X / Estimated ~ / Unknown if hasTotal)
+        Converting → Converting to 3GP...
+        Processing → Merging video and audio...
+        Validating → Validating file...
+        Completed → Completed
+        Failed → Failed · error
+        Cancelled → Cancelled
+        Paused → Paused • 68% • 640 MB / 1.52 GB (via getDisplayProgress: hasTotal && pct!=null → 1-decimal precise, else indeterminate)
+        Downloading → getDisplayProgress → mode determinate if hasTotal&&pct!=null&&!isPostProcessing else indeterminate
+          determinate: `${pct}% • ${speed} • ${bytes} • ${eta}` where pct = max(item.percent, derived) rounded 10/10 clamped 0-100, speed formatBytes/s, bytes `${dl} / ${tot}` or `${dl} downloaded`, eta `ETA Xm Ys`
+          indeterminate: `Downloading • 640 MB downloaded` or `Downloading...` (no total)
+          Order always percent • speed • bytes • ETA
+      Progress bar:
+        showDeterminate = display.mode==='determinate' (hasTotal && pct!=null && phase not post-processing, plus Completed/Paused)
+          <div mt1 h1.5 w-full overflow-hidden rounded-full bg slate-700>
+            <div h-full transition-all duration-500 ease-out bg sky 400 (amber if Paused) style width `${Math.max(0,Math.min(100,progress))}%` />
+          </div>
+        showIndeterminate = display.mode==='indeterminate' (isDownloading&&!hasTotal || Merging/Converting/Validating)
+          <div mt1 h1.5 w-full overflow-hidden rounded-full bg slate-700 relative>
+            <div h-full w-1/3 bg sky 400 absolute inset-y-0 animation shimmer 1.2s ease-in-out infinite />
+          </div>
+          Keyframes shimmer 0% translateX -100% → 100% translateX 350% (index.css)
+          Note: determinate and indeterminate mutually exclusive, no overlay
+    Right: flex gap1.5 self-center IconButtons:
+      Queued → Play (start) aria startDownload
+      DownloadingBroad (Downloading/Processing/Validating/Converting) → Pause (2 rects)
+      Paused → Resume (play triangle)
+      Failed → Retry (Icon retry)
+      Completed + outputPath → Open file (doc) + Reveal in folder (folder)
+      Always → Remove trash (delete)
+  Note: Initially after Add, CartItem has percent 0, totalBytes from analyzed size (exact or approx) or null, downloaded null, so Queued shows Size, Downloading shows 0% with bar at 0% then moves via polling 1s
+
+Polling: App.tsx activeJobSignature = cart.filter(jobId).map(id:jobId).join('|'), useEffect polls getDownloadJob(jobId) every 1000ms, applyJobToCartItem monotonic (Math.max) + phase floors 92/98/100, updates totalBytes via ?? (keeps analyzed until runtime reports), speed/eta hide when null.
+
+4. HISTORY PAGE (HistoryView.tsx, view=history)
+--------------------------------------------------------------------------------
+Panel header: Recent Downloads + badge sky (count items) + Clear history button (if history.length===0 disabled slate 700 opacity60, else red 400/25 bg 900/70 hover red)
+Empty: grid center Icon empty + p emptyHistory slate 400
+Non-empty: ul mt4 grid gap3 p0
+  Each li same grid as Queue: 64px thumb, details, actions
+    thumb: entry.thumbnail (from Rust history, optional)
+    details: strong filename/format ellipsis slate-50 text-sm, meta `media_type · format · resolution · status` slate 400 0.78rem, path truncate slate 500 0.7rem (output_path)
+    actions: if Completed + output_path → Open file + Reveal folder
+             if Failed → Retry
+             always Delete trash
+             Retry creates new CartItem from history entry (quality via tierFromResolutionValue, dimension via parseDimension) and deletes failed entry
+  Persistence: Rust AppData/KWL Video Downloader/history.json max 50, partition_history_by_existing_files removes completed without file on every read, failed/cancelled kept
+  Refresh: onRefresh re-reads history
+
+5. SETTINGS PAGE (SettingsView.tsx, view=settings)
+--------------------------------------------------------------------------------
+Space-y-5, 3 Panels:
+
+  General Panel (PanelHeader General, compact, h3 General):
+    - Default Output Folder: label bold slate 300 mb2.5, flex gap3 max-[760px]:flex-col, input readOnly value C:\Users\Public\Videos\KWL Downloads w-full min200px rounded-xl border slate 400/40 bg 900/80 px4 py0.9rem slate 50
+    - Language: label bold, inline-flex rounded 10px border slate 25% bg 900/70 p1, buttons EN/BN with active bg sky 20% text sky 100 vs inactive slate 300, onClick setLanguage
+    - Theme: label bold, p darkTheme slate 400 0.95rem (fixed dark, no toggle)
+
+  Advanced Panel (PanelHeader Advanced):
+    - Max Concurrent Downloads: label bold, button w-full max 320px flex justify-between rounded-xl border slate 30% bg 900/80 px4 py3 text left hover sky 50% bg 800/80 focus ring 2 sky 50%
+      left: icon 7x7 sky 15% border sky 20% (people), text 14px bold slate 100 `{n} video(s) at once` + ml1 12px slate 400 · Professional, right chevron
+      hint mt1.5 0.72rem slate 500 maxConcurrentHint
+      Modal when open: fixed inset-0 z80 flex center p4, backdrop slate 950/60 blur 6px, window w 420px rounded-2xl border slate 700/50 bg 900 shadow 60px flex-col
+        header flex justify-between border-b slate 800 px5 py4: title concurrentDownloadsTitle base bold slate 100, desc xs slate 400, close X rounded-xl border slate 700 bg 800
+        grid p5 gap2.5 grid-cols-2: buttons 1..5, each rounded-xl border px4 py3 text left, active border sky 400 bg 15% shadow else slate 700 bg 70% hover, text base bold, desc xs slate 400 (1 sequential,2 default,3 recommended,5 max)
+        footer flex justify-between border-t px5 py3: currentConcurrent count xs slate 500, Done gradient button px5 py2 text sm bold shadow
+      Value from useSettings() settings.maxConcurrent (1-5), setter setMaxConcurrent
+
+  Updates Panel (PanelHeader Updates):
+    - Check Updates: label bold, button gradient sky→blue px1.2rem py0.9rem rounded-xl border transparent bold slate 50 hover -translate-y-px disabled 60% max-[760px]:w-full, text t.checkNow
+
+6. ABOUT PAGE (AboutView.tsx, view=about)
+--------------------------------------------------------------------------------
+Panel padding lg, grid justify-items-center gap4 text-center
+  Icon: w20 h20 rounded-2xl border-2 kwl-brand-blue bg 10%, text 2xl bold kwl-brand-sky KWL
+  Title: h2 text-2xl bold tracking-tight KWL Video Downloader, p mt1 slate 400 Version {shell.version} (from getAppShellState), p mt1 slate 500 Windows x64
+  Desc: p max-w-md slate 300 "A modern video downloader built with Tauri 2, React, TypeScript, and Rust. Supports multi-format..."
+  Buttons flex wrap gap3 center: GitHub + Report Issue (both border slate 30% bg 800/90 px1.2rem py0.9rem rounded-xl border transparent bold slate 50 hover -translate-y-px)
+  Footer: p xs slate 500 © 2026 KWL. All rights reserved.
+
+7. COMMON COMPONENTS & STYLES
+--------------------------------------------------------------------------------
+Panel: rounded-2xl border kwl-panel-border bg kwl-panel-bg/borderStrong, shadow kwl-panel, padding default or lg, header label count action
+PanelHeader: flex justify-between, label uppercase tracking, count badge etc.
+Thumbnail: size md 64px (60px mobile) rounded-xl overflow-hidden bg slate 800, img cover 16:9, fallback icon
+Icon: empty, retry, etc. (svg)
+IconButton: variant default, rounded-lg p, hover bg slate 800
+OptionCard: rounded-xl border, selected border sky 400 bg 15% shadow 0 0 0 2px rgba(56,189,248,0.25) vs unselected slate 700 bg 70% hover, text sm bold
+Toast: fixed inset-0 z999 flex center p4, backdrop slate 950/60 blur 6px, window max-w 420px rounded-2xl border bg 900/95 p5 shadow 60px, icon 9x9 rounded-xl (emerald/red), title Success/Failed 0.95rem bold, message 0.9rem leading5 slate 200 break-words, close X, duration default 1100ms but already-download 3800ms, partial 3000ms
+index.css: @tailwind base/components/utilities, @layer base :root weight 500 line-height 1.5, html/body/#root min-height/width 100% bg radial+linear navy, color #e2e8f0, button/label cursor pointer, disabled not-allowed, custom-scrollbar thin slate 35%, keyframes shimmer 0% -100% → 100% 350%
+tailwind.config.js: content ./index.html src/**/*.{ts,tsx}, theme extend font sans Segoe UI/Inter, colors kwl navy/panel/brand/status/text, radii kwl-sm 8/kwl 12/kwl-lg 20/kwl-xl 24, spacing, shadows, maxWidth kwl-content 1180px
+
+8. STATE & DATA FLOW (UI)
+--------------------------------------------------------------------------------
+App.tsx state: url, error, status, isLoading, history[], cart[], analyses[], selectedMediaIds[], activeMediaId, mediaType, mediaTypeChosen(true), selectedFormat, formatChosen, selectedQuality, qualityChosen, selectedDimension, outputDirectory, toast, wizardStep, isQueuePaused, goToQueueDismissed, cartSequenceRef, startingItemsRef
+Derived: activeMediaCount, mediaSelected, flowAnalysis (selected active), activeCartStatus, analyzeEnabled, canAdd via canAddToQueue, wizardSteps via getStepsForMedia, selectedSize via getSelectedFormatSize (memo)
+Effects: getAppInfo→status, getDownloadHistory→history, downloadDir→outputDirectory, refreshHistory, activeJobSignature polling 1s, error auto-clear 2.5s, queue complete toast, wizardStep valid, auto-select first format/quality/dimension (useEffect + synchronous handlers), position-aware chain, GoToQueue hide, etc.
+Handlers: handleAnalyze (isAnalyzableUrl, isPlaylistUrl, validateUrl, analyzeUrl/Playlist, parseAnalysisResponse), handleMediaCardSelect, handleMediaTypePick (sync auto first format/quality), handleFormatPick (sync), handleQualityPick (single-dim auto), handleDimensionPick, handleBrowse, createCartItem (id key percent 0 etc. + video/audio sizes), startCartItemJob (startDownload with sizes), queue runner (maxConcurrent, startingItemsRef, isQueuePaused), handleRemoveItem (cancel + deleteHistoryByUrl), handlePauseAll/ResumeAll/CancelAll/ClearQueue, handleOpenFile/Reveal, handleRetryHistory, handleDelete/ClearHistory
+Translations: TranslationProvider, useTranslations() t.* keys (e.g., t.analyze, t.mediaType, t.quality, t.dimensions, t.outputFolder, t.addToQueue, t.queueEmpty)
+Settings: SettingsProvider, useSettings() maxConcurrent, language
+View: useView() view/setView, goToQueueDismissed logic
+
+9. RESPONSIVE & ACCESSIBILITY
+--------------------------------------------------------------------------------
+Breakpoints: 760px (flex-col, stack), 520px (thumb 60px, gap 2.5, container px3)
+Grids: Analyzed media + Format/Resolution grids use min-[761px]:... unified 760 system
+Overflow: step chain overflow-x-auto scrollbar-thin, thumbnail scales 16:9 no horizontal overflow
+ARIA: UrlPanel aria-label, OptionCard role tablist, Configuration navigation aria-label, Toast role alert aria-live assertive, IconButtons aria-label
+Keyboard: focus ring sky 300/90 shadow, disabled not-allowed

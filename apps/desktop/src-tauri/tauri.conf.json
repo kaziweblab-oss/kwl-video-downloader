@@ -1,0 +1,64 @@
+{
+  "$schema": "https://schema.tauri.app/config/2.0.0/schema.json",
+  "productName": "KWL Video Downloader",
+  "version": "1.0.0",
+  "identifier": "com.kwl.videodownloader",
+  "build": {
+    "beforeDevCommand": "npm run dev --workspace @kwl/desktop",
+    "beforeBuildCommand": "npm run build --workspace @kwl/desktop",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [{
+      "title": "KWL Video Downloader",
+      "width": 1200,
+      "height": 800,
+      "minWidth": 380,
+      "minHeight": 520,
+      "resizable": true
+    }],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "publisher": "KWL",
+    "android": {
+      "minSdkVersion": 24,
+      "versionCode": 1
+    },
+    "category": "Utility",
+    "shortDescription": "Free and offline video & audio downloader",
+    "longDescription": "KWL Video Downloader is a free, offline, cross-platform media downloader. Paste a link and download video or audio in minutes - no account, login, or payment required.",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser",
+        "displayLanguageSelector": false,
+        "languages": ["English"]
+      },
+      "wix": {
+        "language": "en-US"
+      }
+    },
+    "macOS": {
+      "dmg": {
+        "windowSize": { "width": 660, "height": 400 }
+      }
+    },
+    "linux": {
+      "deb": {
+        "desktopTemplate": null
+      }
+    }
+  },
+  "plugins": {}
+}

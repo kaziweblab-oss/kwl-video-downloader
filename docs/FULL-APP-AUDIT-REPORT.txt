@@ -1,0 +1,269 @@
+================================================================================
+ KWL VIDEO DOWNLOADER - FULL APPLICATION AUDIT REPORT
+ Audit date : 2026-08-25
+ Version    : 0.1.0 | Roadmap phase: 3 of 13
+ Auditor    : Coding agent (static review + fresh executable verification)
+================================================================================
+
+--------------------------------------------------------------------------------
+1. EXECUTIVE SUMMARY
+--------------------------------------------------------------------------------
+Overall verdict : SOLID FOUNDATION, PHASE-3 COMPLETE PENDING ONE HUMAN GATE
+Architecture    : PASS  - locked Tauri 2 + React + TS + Vite + Rust, intact
+Frontend        : PASS  - typed bridge, no shell execution, Tailwind UI
+Rust native     : PASS  - 10 typed commands, validated inputs, safe cleanup
+Security        : PASS  - all Phase-1/2/3 rules enforced (see section 7)
+Tests           : PASS  - 15/15 vitest + 14/14 cargo (fresh runs this audit)
+Build           : PASS  - production bundle + cargo check/test (fresh)
+Runtime         : PASS  - launch-only; full media workflow HUMAN_REQUIRED
+Installer/Nexus/Update/License: NOT RUN (Phase 4+ by roadmap)
+
+The application is a working Windows desktop downloader with real yt-dlp /
+FFmpeg / ffprobe orchestration, a cart-based sequential queue, ffprobe-validated
+outputs, and persistent history. 21 findings were registered (0 HIGH, 3 MEDIUM,
+7 LOW, 11 INFO). No blocker prevents the Phase-3 human acceptance gate.
+
+--------------------------------------------------------------------------------
+2. SCOPE AND METHOD
+--------------------------------------------------------------------------------
+- Full read of every source file (frontend, Rust, packages, tests, configs)
+- Fresh executable verification on this machine (commands in section 10)
+- Cross-check against docs/MASTER-SPEC.md, ARCHITECTURE.md, PROJECT-STATE.md,
+  DECISION-LOG.md, ROADMAP.md, SECURITY.md
+- Responsiveness audit completed separately this session (section 9 summary)
+
+--------------------------------------------------------------------------------
+3. REPOSITORY INVENTORY (excluding node_modules/target/dist/locks)
+--------------------------------------------------------------------------------
+ apps/desktop/src/ui/App.tsx ................ 1102 lines  React UI (single file)
+ apps/desktop/src-tauri/src/lib.rs ..........  784 lines  Native core + 14 tests
+ apps/desktop/src-tauri/src/main.rs .........   59 lines  10 Tauri commands
+ apps/desktop/src/native/tauriBridge.ts .....  163 lines  Typed bridge + fallbacks
+ packages/shared/src/index.ts ...............  140 lines  Domain models/entitlement
+ packages/downloader-core/src/index.ts ......  151 lines  Downloader abstraction
+ packages/downloader-core/nativeExecutor.ts .   31 lines  SafeNativeExecutor
+ packages/runtime/src/index.ts ..............  110 lines  RuntimeManager contract
+ tests/ (3 files) ...........................  144 lines  15 vitest cases
+ apps/desktop/src/index.css .................   34 lines  Tailwind base layer
+ docs/ (10 files) ...........................  ~700 lines  Specs/state/memory
+ .github/workflows/ci.yml ...................   28 lines  CI pipeline
+ artifacts/sample-test.mp4 ..................  22 KB      ffprobe test fixture
+
+--------------------------------------------------------------------------------
+4. ARCHITECTURE AUDIT - PASS
+--------------------------------------------------------------------------------
+Data flow (as specified and as implemented):
+  React UI -> TypeScript app layer -> Tauri bridge -> Rust native layer
+           -> runtime resolution -> yt-dlp / FFmpeg / ffprobe
+
+Verified properties:
+- Frontend contains zero shell/process execution; only typed bridge calls
+- All 10 Tauri commands are thin wrappers over tested *_impl functions
+- Runtime resolution is abstracted (packages/runtime) and env-overridable
+  (KWL_YTDLP_PATH / KWL_FFMPEG_PATH / KWL_FFPROBE_PATH, see .env.example)
+- Monorepo boundaries clean: shared (types) <- downloader-core <- runtime
+- No production mocks in the Tauri path; browser fallbacks only outside Tauri
+- Version 0.1.0 consistent across package.json, tauri.conf.json, Rust impl
+
+--------------------------------------------------------------------------------
+5. FRONTEND AUDIT - PASS (with findings A3, A8, A11)
+--------------------------------------------------------------------------------
+App.tsx (1102 lines):
+- Session cart model with per-item lifecycle: Pending -> Queued -> Downloading
+  -> Processing -> Validating -> Completed/Failed/Cancelled
+- Sequential runner effect auto-starts the next queued item; re-entry guarded
+  by startingItemsRef; job polling (1s) keyed on active job signature
+- EntitlementService (Free audio <= 20 min) + duplicate guards at Add time
+- Analyzed media list: select / mark / bulk-add / remove, dynamic format and
+  resolution lists derived from real analyzed formats (not hard-coded)
+- History: status dots, format badges, Open/Show-in-folder/Retry/Delete
+- EN/BN translations centralized; errors sanitized via getFriendlyErrorMessage
+  (no raw invoke/tauri errors leak to the UI)
+
+tauriBridge.ts:
+- Detects __TAURI_INTERNALS__ before invoke; browser mode gets deterministic
+  fallbacks (app info, URL validation, demo analysis, queued job stub) and
+  honest rejection for file actions - no fake success
+- All payloads typed; snake_case wire format matches Rust serde structs
+
+Findings:
+- A3 (MEDIUM): Browse button is a placeholder (keeps/defaults the path); no
+  native folder picker yet - requires tauri-plugin-dialog in Phase 4/5
+- A8 (LOW)  : analyze_url has no timeout; a hung yt-dlp leaves Analyze pending
+  (UI stays responsive; there is no Cancel for analysis)
+- A11(INFO) : App.tsx is a single 1102-line file; split into components/hooks
+  recommended before adding features
+
+--------------------------------------------------------------------------------
+6. RUST NATIVE AUDIT - PASS (with findings A2, A4-A7, A14)
+--------------------------------------------------------------------------------
+Commands (main.rs -> lib.rs): validate_url, get_app_info, analyze_url,
+start_download, get_download_job, cancel_download, get_download_history,
+delete_download_history, open_media_file, reveal_media_in_explorer
+
+Verified behaviors:
+- URL validation: url::Url parse + http/https scheme allow-list
+- Analysis: yt-dlp --dump-single-json (the --print json NA bug stays fixed),
+  output mapped to a safe JSON payload (title/author/duration/thumbnail/
+  formats with codec, dimensions, bitrate, merge flags)
+- Downloads: async job registry (Mutex<HashMap>), atomic job IDs
+  (timestamp + AtomicU64, covered by a 100-start uniqueness test), per-job
+  temp workspace under %TEMP%\kwl-video-downloader\<job>, cleaned on every
+  terminal state, --restrict-filenames, temp:-paths staging
+- Progress: piped stderr parsed for percent/total/speed/ETA (deterministic
+  tests incl. malformed-line rejection); [Merger]/[ExtractAudio] -> processing
+- Completion: exit success -> ffprobe validation (readable stream + duration
+  > 0) -> completed; otherwise failed; history written on terminal states
+- Cancellation: taskkill /PID <pid> /T /F kills the whole process tree
+- History: AppData\KWL Video Downloader\history.json, capped at 50 entries,
+  entry-only deletion (files untouched), 3 deterministic removal tests
+- File actions: canonical-path validation against persisted history or
+  active-job output locations before any open/reveal (anti path-traversal)
+- Entitlement defense-in-depth: native LICENSE_REQUIRED for audio > 20 min
+
+Findings:
+- A2 (MEDIUM): History timestamps use Rust debug format of SystemTime
+  ({:?}), not ISO-8601; the UI cannot parse them, so timestamps never render
+  in history rows and ordering is insertion-based. Recommend unix millis or
+  RFC 3339.
+- A4 (LOW)  : Finished job entries stay in the JOBS map until app restart
+  (temp dirs ARE removed); unbounded growth is bounded in practice by
+  session length but a terminal-state sweep is recommended
+- A5 (LOW)  : get_app_info hardcodes name/version/environment instead of
+  CARGO_PKG_VERSION / tauri config - drift risk on version bumps
+- A6 (LOW)  : cancel_download on an already-finished job still flips status
+  to cancelled (race window); the UI only offers cancel on active states
+- A7 (LOW)  : open_media_file spawns cmd /C start (extra shell layer);
+  path is canonicalized + validated first so risk is low, but direct
+  ShellExecute would be tighter
+- A14(INFO) : yt-dlp/ffprobe resolved by probing PATH on every call - fine
+  for development; Phase 4 must switch to bundled paths only (per SECURITY.md)
+
+--------------------------------------------------------------------------------
+7. SECURITY AUDIT - PASS (all current-phase rules enforced)
+--------------------------------------------------------------------------------
+[PASS] Frontend executes no shell commands; no arbitrary command construction
+[PASS] URL scheme allow-list http/https before analysis or download
+[PASS] Output directory sanitized in Rust: empty/.. /NUL rejected,
+       create_dir_all failure rejected
+[PASS] --restrict-filenames + yt-dlp template output (no raw title paths)
+[PASS] Open/Reveal restricted to canonical files from history or active jobs
+[PASS] Per-job temp isolation + cleanup on terminal states
+[PASS] Free-plan audio entitlement enforced in UI AND native layer
+[PASS] No secrets/tokens in repo (.env.example documents empty runtime vars)
+[PASS] Sanitized user-facing errors; raw command output never surfaced
+[NOTE] PATH-based runtime resolution must be replaced by bundled-only paths
+       before production (Phase 4, already documented in SECURITY.md)
+[NOTE] Process timeouts/crash hardening and signed updates are later-phase
+       requirements (SECURITY.md) - correctly still open
+
+--------------------------------------------------------------------------------
+8. PACKAGES AUDIT - PASS
+--------------------------------------------------------------------------------
+packages/shared: strict domain types (VideoInfo, MediaFormat, DownloadRequest/
+Job/Progress/Error, AppVersionInfo), EntitlementService, isValidHttpUrl,
+sanitizeOutputDirectory, validateDownloadRequest - covered by 7 vitest cases
+packages/downloader-core: DownloaderCore interface + RealDownloaderCore typed
+abstraction (fixture analysis data by design - the real flow goes through the
+Tauri bridge, per DECISION-LOG), sanitizeFilename, isValidOutputDirectory,
+mapQualityToResolution - covered by 6 vitest cases
+packages/runtime: RuntimeManager contract, env-first/bundled-second resolution
+priority, no-PATH production direction documented - exercised by app shell
+
+--------------------------------------------------------------------------------
+9. RESPONSIVENESS AUDIT SUMMARY (completed earlier this session)
+--------------------------------------------------------------------------------
+7 issues found and fixed, all verified (details in RESPONSIVE-AUDIT-REPORT.txt):
+  FIX-1 MEDIUM: History/Cart thumbnail (72px) overflowed its 56px mobile grid
+        track -> text/dot overlapped the image (user-reported screenshot)
+  FIX-2 LOW   : format badge stretched full-width on mobile -> hug content
+  FIX-3 LOW   : md:(768px)/max-md: vs custom 760px breakpoint mismatch zone
+  FIX-4 LOW   : analyzed-media rows had no <=520px tuning
+  FIX-5 LOW   : status pill overflow risk -> truncate
+  FIX-6 LOW   : main padding not reduced on small screens
+  FIX-7 LOW   : Tauri window had no minWidth/minHeight -> 380x520 set
+
+--------------------------------------------------------------------------------
+10. FRESH VALIDATION EVIDENCE (this audit, 2026-08-25)
+--------------------------------------------------------------------------------
+ PASS  npm run ci:check          -> vitest 15/15 (3 files) + tsc --noEmit clean
+ PASS  npm run build --workspace @kwl/desktop
+                                -> dist OK, CSS 18.90 kB, JS 179.52 kB
+ PASS  cargo check  (MSVC)      -> Finished dev profile in 9.34s
+ PASS  cargo test   (MSVC)      -> 14/14 native tests, 0 failed
+ PASS  tauri.conf.json          -> JSON valid (incl. new minWidth/minHeight)
+ PASS  (prior session) real yt-dlp analysis of a public URL returned real
+       metadata (id/title/duration/42 formats); artifacts/sample-test.mp4
+       ffprobe validation PASS
+ HUMAN_REQUIRED  full Tauri WebView media workflow (analyze -> video MP4 ->
+       audio MP3 -> progress/cancel/retry -> restart persistence -> ffprobe);
+       WebView cannot be automated in this environment
+ NOT RUN  installer, license backend, KWL Nexus, auto-update (Phase 4+)
+
+--------------------------------------------------------------------------------
+11. CI AUDIT (with finding A1, A9)
+--------------------------------------------------------------------------------
+Workflow: push/PR -> npm install -> vitest -> tsc -> cargo check (deterministic,
+no third-party sites - complies with MASTER-SPEC evidence rules).
+- A1 (MEDIUM): the workspace is NOT a git repository (verified:
+  .git absent), so the CI workflow cannot run and there is no version
+  control / history. git init + initial commit strongly recommended.
+- A9 (LOW)  : CI runs only on ubuntu-latest; Windows-specific code paths
+  (taskkill, cmd start, APPDATA history) compile via cfg-gating but never
+  run - add a windows-latest job.
+- A10(LOW)  : no ESLint/Prettier; typecheck only.
+- A12(INFO) : tsconfig.tsbuildinfo and src-tauri/gen/schemas are committed
+  build artifacts - add to .gitignore when git is initialized.
+
+--------------------------------------------------------------------------------
+12. FINDINGS REGISTER (0 HIGH / 3 MEDIUM / 7 LOW / 11 INFO)
+--------------------------------------------------------------------------------
+ MEDIUM  A1  Not a git repository; CI cannot run (section 11)
+ MEDIUM  A2  History timestamps not ISO-8601; never shown in UI (section 6)
+ MEDIUM  A3  No native folder picker; Browse is a placeholder (section 5)
+ LOW     A4  Terminal job entries never removed from JOBS map (section 6)
+ LOW     A5  get_app_info hardcodes version/environment (section 6)
+ LOW     A6  Cancel race on finished jobs (section 6)
+ LOW     A7  cmd /C start extra shell layer for open-file (section 6)
+ LOW     A8  No timeout on analysis (section 5)
+ LOW     A9  CI lacks a Windows job (section 11)
+ LOW     A10 No ESLint/Prettier (section 11)
+ LOW     A11 App.tsx single 1102-line file (section 5)
+ INFO    A12 Build artifacts committed; gitignore pending git init
+ INFO    A13 downloader-core fixture data is by-design abstraction
+ INFO    A14 PATH-probing runtime resolution; bundle in Phase 4
+ INFO    A15 Version 0.1.0 consistent everywhere
+ INFO    A16 Cart is session-only by design; history is the persistent record
+ INFO    A17 Sequential queue matches single tracked-process model
+ INFO    A18 Progress ring + linear bar both driven by real parsed telemetry
+ INFO    A19 Browser-mode fallbacks are honest (no fake success for actions)
+ INFO    A20 50-entry history cap prevents unbounded AppData growth
+ INFO    A21 sample-test.mp4 fixture enables deterministic ffprobe testing
+
+--------------------------------------------------------------------------------
+13. PRIORITIZED RECOMMENDATIONS
+--------------------------------------------------------------------------------
+ 1. git init + initial commit; add tsconfig.tsbuildinfo + gen/schemas to
+    .gitignore (A1, A12) - enables CI and protects history
+ 2. Switch history timestamps to unix-millis or RFC 3339 (A2)
+ 3. Add windows-latest job to CI (A9)
+ 4. Add tauri-plugin-dialog folder picker; wire Browse (A3)
+ 5. Sweep terminal jobs from the registry; read version from
+    CARGO_PKG_VERSION (A4, A5)
+ 6. Phase 4: bundle yt-dlp/FFmpeg/ffprobe and resolve bundled-only (A14)
+ 7. Later: analysis timeout + cancel, ESLint, App.tsx split (A8, A10, A11)
+
+--------------------------------------------------------------------------------
+14. ROADMAP POSITION
+--------------------------------------------------------------------------------
+ Phases 0-2 COMPLETE (bootstrap, architecture, real downloader core)
+ Phase 3  IN PROGRESS - code-complete; only the human-performed desktop
+          acceptance remains (real URL analyze -> video -> audio -> cancel ->
+          retry -> restart persistence -> ffprobe). Responsiveness and full
+          code audit are now done and green.
+ Phase 4+ BLOCKED until that gate passes (bundling, installer, CI release,
+          license, Nexus, update, hardening, cross-platform per ROADMAP.md)
+
+================================================================================
+ END OF FULL APP AUDIT REPORT
+================================================================================

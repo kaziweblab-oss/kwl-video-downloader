@@ -1,0 +1,20 @@
+{
+  "name": "kwl-video-downloader",
+  "private": true,
+  "version": "1.0.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace @kwl/desktop",
+    "build": "npm run build --workspace @kwl/desktop",
+    "check": "npm run check --workspace @kwl/desktop",
+    "test": "vitest run",
+    "ci:check": "npm run test && npm run check"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "vitest": "^4.1.11"
+  }
+}

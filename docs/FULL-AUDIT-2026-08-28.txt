@@ -1,0 +1,216 @@
+================================================================================
+KWL VIDEO DOWNLOADER - FULL CURRENT STATUS AUDIT
+================================================================================
+Generated: 2026-08-28 00:30 UTC
+Auditor: Muse Spark (opencode)
+Workspace: C:\Users\Khairul Islam\Desktop\KWL Video Downloader
+Requested by: user
+================================================================================
+
+1. EXECUTIVE SUMMARY
+--------------------------------------------------------------------------------
+Stack: Tauri 2 + Rust + React + TypeScript + Vite + yt-dlp + FFmpeg + ffprobe
+Platform: Windows desktop target
+Current Phase: Phase 3 (Real metadata / downloader UI integration) - hardening
+Overall: 58 vitest PASS, 58 cargo PASS (3 ignored), build PASS, but
+         REAL queue download FAILs (real_download_pause_resume_lifecycle)
+         Human GUI acceptance still HUMAN_REQUIRED.
+
+2. MONOREPO STRUCTURE
+--------------------------------------------------------------------------------
+apps/desktop/               Tauri shell + React UI
+  src-tauri/                Rust backend (lib.rs 2451 lines, tools.rs 560 lines)
+    Cargo.toml              kwl-video-downloader 0.1.0, tauri 2.0, serde, rusqlite, reqwest
+  src/ui/                   React components
+    App.tsx (1290 lines)    Main state, cart, polling, auto-select logic
+    downloadFlow.ts (595)   State machine, size helper, quality tiers
+    views/QueueView.tsx     Progress bar (determinate/indeterminate)
+    components/Configuration.tsx  Wizard (5 steps)
+  src/native/tauriBridge.ts Typed Tauri invoke + fallback demo
+  src/index.css             Tailwind + shimmer keyframes
+packages/shared/            Shared domain types
+packages/downloader-core/   Downloader abstraction
+packages/runtime/           Runtime manager
+docs/                       15 md files, 8 txt reports
+File counts (excl. target/node_modules):
+  .tsx 24, .ts 16, .rs 4, .json 16, .css 2
+
+3. LOCKED ARCHITECTURE (per AGENTS.md / MASTER-SPEC)
+--------------------------------------------------------------------------------
+✓ Tauri 2 + React + TypeScript + Vite + Rust preserved
+✓ Process execution ONLY in Rust behind typed Tauri commands
+✓ Frontend never executes shell commands
+✓ No second app created, incremental evolution
+✓ No production mocks, no deleted working functionality
+
+4. FEATURE IMPLEMENTATION STATUS
+--------------------------------------------------------------------------------
+[PASS] URL validation (http/https, isAnalyzableUrl)
+[PASS] yt-dlp analyze via --dump-single-json → build_media_analysis_payload
+         formats now expose filesize + filesizeApprox separate
+[PASS] Thumbnail handling (thumbnail/thumbnails array fallback)
+[PASS] Analyzed media list (multi-select, mark toggle, remove, clear)
+[PASS] Media Type flow: Video/Audio, initially Video selected (mediaTypeChosen:true)
+       Auto first Format/Quality/dimension (synchronous in handleMediaTypePick/FormatPick)
+       Chain position-aware (targetIdx<curIdx only, not auto-full)
+[PASS] Format: Video MP4/WEBM/3GP, Audio MP3/M4A/OPUS/WAV union analyzed
+[PASS] Quality: Video tiers derived from videoResolutions (unique heights desc),
+       Audio bitrates, dimensions grouped under tier, single-dim auto-resolve
+[PASS] File Size Detection (NEW): getSelectedFormatSize() in downloadFlow.ts
+       - video_size_bytes (exact), videoApprox, audio_size, audioApprox
+       - total = video+audio (exact sum) or combined stream or approx or Unknown
+       - Handles 500MB/2GB/5GB/10GB (u64, no overflow)
+       - Prefers exact filesize, labels approx as Estimated ~, unknown as Unknown
+       - CartItem now stores videoBytes/audioBytes/analyzedTotalBytes/sizeKnown/isApprox
+       - totalBytes initial = analyzed total (if known) else null
+       - Configuration.tsx shows Video:245 MB • Audio:8.4 MB • Total:253 MB etc.
+       - QueueView Queued shows Queued • Size: X / Estimated / Unknown
+[PASS] Output folder (sanitized, fallback to Downloads/KWL, create_dir_all)
+[PASS] Add to Queue: duplicate guard (height-normalized, cart+history completed),
+       entitlement check (20min audio), transcode flag for 3GP
+       Post-add: clears url + analyses + wizard reset, GoToQueue hide logic
+[PASS] Queue: sequential runner (maxConcurrent 2, startingItemsRef guard),
+       cart item states Pending/Queued/Downloading/Paused/Converting/Processing/Validating/Completed/Failed/Cancelled
+       Per-state IconButtons, Pause/Resume/Cancel/Clear, GoToQueue hide-after-click
+[FAIL] Download execution: real_download_pause_resume_lifecycle FAILS (see §8)
+       Queue download reportedly fails in user GUI as well
+[PASS] Progress: ProgressAggregator byte-weighted monotonic, unknown→None, floors 92/98/100
+       Recent fixes: total_bytes .or→if Some, App.tsx ??, QueueView precise float
+       getDisplayProgress() single source, determinate/indeterminate exclusive, shimmer
+       Large-file rounding fixed (Math.round*10/10), downloaded>total clamped 100
+[PASS] Pause/Resume: NtSuspend/ResumeProcess tree (Toolhelp32), keeps jobId/bytes
+[PASS] Cancel: taskkill /T /F, temp cleanup, history cancelled
+[PASS] Retry: create new job, handleRetryHistory deletes failed entry
+[PASS] History: AppData/KWL Video Downloader/history.json (50 max), file-synced
+       partition_history_by_existing_files removes completed without file, never deletes file
+       Delete/clear commands, Refresh button
+[PASS] ffprobe validation: positive duration + stream check, fallback size>1024 if ffprobe missing
+[PASS] 3GP: always available, ffmpeg mpeg4+ aac scale=-2:H, converting state, PID tracked
+[PASS] Tool Manager (NEW, 560 lines tools.rs):
+       Base %APPDATA%/KWL Video Downloader/tools/{yt-dlp,ffmpeg,ffprobe}/{current,previous,staging}/
+       manifest.json (version, path, platform, arch, checksum, installed_at, status)
+       health_check_executable (--version/-version), resolve prefers managed current
+       startup_health_check + background_update_check (non-blocking, offline-safe)
+       staged_update: stage→health→backup→activate→health→rollback, file-lock handling
+       has_active_download_jobs defer, 3 Tauri commands + bridge + startup toast
+       Tests 7 deterministic (manifest, missing, invalid, version, staged rollback, structure, offline)
+[PASS] Startup: downloadDir → Downloads/KWL, AppInfo, History load
+[PASS] UI Polish: already-download toast success 3800ms with close btn, GoToQueue hide, link+media clear
+[PASS] Responsive: Tailwind, 760px/520px breakpoints, minWidth 380
+
+5. TEST MATRIX
+--------------------------------------------------------------------------------
+Vitest: 4 files, 58 tests PASS (was 51, +7 size detection)
+  - url gating, sequential flow, wizard, progress aggregation, duplicate guard
+  - NEW file size detection: combined exact, combined stream, unknown, approx, 2GB, 5/10GB, null handling
+
+Cargo: 58 passed, 3 ignored, 0 failed (was 48, +7 tool +3 large-file)
+  lib.rs: 61 tests total (including large_file_500mb, large_file_5gb_combined, large_file_monotonic)
+  tools.rs: 7 tests
+  Ignored (network): real_analyze_url, real_analyze_user_url, real_download_pause_resume_lifecycle
+    -> real_download now FAILS when run with --ignored (regression, see §8)
+
+Typecheck: tsc --noEmit PASS
+Build: vite build PASS
+  dist/index.html 0.42 kB
+  index-BKsx9JxB.css 32.79 kB (gzip 6.73)
+  core-DhEqZVGG.js 2.44 kB
+  path-DpyQXOHZ.js 3.77 kB
+  index-CSvCwpu1.js 245.31 kB (gzip 72.49)
+
+Cargo check: PASS (2 warnings: dead_code FileProgressState speed/eta, unused mark_job_processing)
+
+6. REAL RUNTIME STATUS
+--------------------------------------------------------------------------------
+Tauri dev: launches (Vite 5173/5174 HTTP 200, exe PID varies)
+  Last launches: 5173 (00:21), 5174 (earlier, port conflict), 5173 again
+  Watcher: excludes src-tauri, no EBUSY after fix
+
+yt-dlp: python -m yt_dlp --version 2026.08.19 (via python/py fallback)
+        --dump-single-json returns id bfl76Sr-Rsk Stereo Love 321s 42 formats (tested)
+        --progress-template KWLPROG works: 1024 240334643 NA ... (video 240M) + audio 3.4M → merger
+
+FFmpeg: 9.0 (WinGet Gyan.FFmpeg), ffprobe validated sample-test.mp4 5.758s, 3GP transcode sample-test.mp4→3gp validated
+
+Failing real download (user + test):
+  Test: cargo test real_download_pause_resume_lifecycle -- --ignored
+  Result: FAILED at assert!(percent >0.0) after 15s, job never reached downloading with percent >0
+  Possible cause: recent --no-continue/--overwrites added to yt-dlp command (lib.rs:1091) may have changed output path handling or progress reporting; also recent total_bytes direct assignment (None clears old total) may cause indeterminate;
+  User observation: Image shows 0% • 3.3 MB/s • 367.8 MB / 279.7 MB (downloaded > total, percent 0) — indicates total stale (279.7 video only, not combined) and percent 0 due to unknown total handling.
+  Queue: user reports audio Add to Queue did nothing (now fixed via synchronous auto-select), video remove→re-add resumes from old % (now fixed via --no-continue + history-by-url delete), queue download generally fails (same root as test).
+
+7. TOOL MANAGER STATUS
+--------------------------------------------------------------------------------
+Implementation: Done per spec B1-B12, but network update provider is mocked (no real GitHub query yet)
+Startup: health check fast, background thread, offline-safe (keeps current)
+Active protection: has_active_download_jobs() defers staged_update
+Rollback: previous retained, rename atomic, file-lock abort
+Manifest: version 1, tools map, last_check
+Health: --version checks, 7 tests PASS
+Managed vs PATH: resolve prefers managed current before PATH fallback
+Limitations: No real download of yt-dlp/ffmpeg releases yet, checksum/SIGNATURE not enforced, version comparison simple, no UI for "Update available" beyond toast
+
+8. UI STATUS
+--------------------------------------------------------------------------------
+DownloaderView: UrlPanel + AnalyzedMediaList (mark toggle, remove, clear) + Configuration (wizard)
+Configuration: 5 steps MEDIA→TYPE→FORMAT→QUALITY→OUTPUT (position-aware completed, not auto-full)
+  - TYPE: Video (pre-selected) / Audio
+  - FORMAT: MP4/WEBM/3GP etc.
+  - QUALITY: tiers + dimensions grouped, single-dim auto-resolve, size display added: Video: 245 MB • Audio: 8.4 MB • Total: 253 MB / Estimated ~ / Unknown
+  - OUTPUT: folder input + Browse + size display
+QueueView: status line percent • speed • bytes/total • ETA, determinate (precise float 1-decimal) vs indeterminate shimmer (keyframes added), Queued shows Size, Downloading shows 438 MB / 2.43 GB, Merging 92, Validating 98, Completed 100, Paused amber
+HistoryView: count, status dots, badges, empty illustration, Refresh, Delete, Retry, Open, Reveal
+Settings/About: present
+
+9. KNOWN ISSUES / BLOCKERS
+--------------------------------------------------------------------------------
+- [HIGH] Queue download FAIL: real_download test fails, user reports queue download fails. Root likely recent --no-continue or total handling. Needs runtime-first diagnosis (10 consecutive polls log).
+- [MEDIUM] Large video progress bar still reported static by user (despite fixes). Image evidence 367>279 with 0% confirms total/percent mismatch. Fixed in code but not yet GUI-verified.
+- [MEDIUM] Audio Add to Queue previously did nothing due to async auto-select timing (now fixed synchronously, needs GUI retest)
+- [LOW] Video remove→re-add resumed from old % due to .part resume (now fixed via --no-continue + history-by-url delete, needs retest)
+- [INFO] No git repo (workspace not a git repo per audit, CI workflow dead)
+- [INFO] History timestamps use SystemTime debug format, not ISO
+- [INFO] Browse button placeholder (tauri-plugin-dialog init but not fully wired to native picker in some flows)
+- [INFO] yt-dlp Python launcher spawns child python.exe, requires process tree suspend (implemented)
+- [INFO] Previous analyze failure for youtu.be/bfl76Sr-Rsk fixed via --dump-single-json, but WebView click retest HUMAN_REQUIRED
+
+10. FILE INVENTORY (key)
+--------------------------------------------------------------------------------
+apps/desktop/src-tauri/src/lib.rs (2451 lines, aggregator, jobs, progress, download, history, tools mod)
+apps/desktop/src-tauri/src/tools.rs (560 lines, managed tools)
+apps/desktop/src-tauri/src/main.rs (94 lines, 13 Tauri commands incl. tools)
+apps/desktop/src/ui/App.tsx (1290 lines, cart, polling 1s, auto-select, queue runner)
+apps/desktop/src/ui/downloadFlow.ts (595 lines, state machine, size helper)
+apps/desktop/src/ui/views/QueueView.tsx (212 lines, getDisplayProgress, bar)
+apps/desktop/src/ui/components/Configuration.tsx (289 lines, wizard + size display)
+apps/desktop/src/index.css (54 lines, shimmer keyframes)
+apps/desktop/src/native/tauriBridge.ts (415 lines, ToolStatus types)
+tests/download-flow.test.ts (252 lines, 58 tests incl. size)
+docs/PROJECT-STATE.md (228 lines), DECISION-LOG.md (318+), MEMORY.md (401), ARCHITECTURE.md (78)
+dist/assets/index-CSvCwpu1.js 245.31 kB
+
+11. VALIDATION EVIDENCE (last fresh)
+--------------------------------------------------------------------------------
+PASS: npm run check
+PASS: npm test -- --run 4 files 58 tests
+PASS: cargo test 58 passed 3 ignored
+FAIL: cargo test real_download_pause_resume_lifecycle -- --ignored (regression)
+PASS: npm run build --workspace @kwl/desktop (CSS 32.79 kB)
+PASS: cargo check (2 warnings)
+PASS: Tauri dev launch (Vite 200, exe runs)
+HUMAN_REQUIRED: Full GUI walk (analyze → media Next → type→format→quality(+size)→output → Add → queue bar → pause/resume → 3GP → history → tool status) with large video
+
+12. RECOMMENDATIONS
+--------------------------------------------------------------------------------
+1. Fix queue download fail first: revert/test --no-continue impact, add diagnostic [PROGRESS_TRACE] logs per spec Part 2, run 10 consecutive polls on large video to pinpoint layer A-J, then smallest fix (likely revert total direct assignment vs keep old, or fix size helper to return correct combined total for image case).
+2. Verify file size detection: test getSelectedFormatSize with real yt-dlp dump for 1HOUR PHONK video that showed 0% bug; ensure audio size found.
+3. GUI retest audio Add to Queue (now synchronous), video remove→re-add fresh 0% (now --no-continue), large video bar moves (now precise float).
+4. Init git repo (per audit) to enable CI.
+5. Implement real network update provider for tools (currently mocked).
+6. Add ISO timestamps for history.
+7. Wire tauri-plugin-dialog Browse to native folder picker fully.
+
+================================================================================
+END OF AUDIT
+================================================================================
+File generated: docs/FULL-AUDIT-2026-08-28.txt

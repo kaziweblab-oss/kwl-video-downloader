@@ -1,0 +1,111 @@
+# Progress Bar Static Fix Report
+
+## Root Cause
+
+**Bug**: The progress bar appeared static because `total_bytes` was never updated when a second stream (audio) was discovered during multi-stream downloads (video + audio).
+
+**Location**: `apps/desktop/src-tauri/src/lib.rs` - Progress aggregation update logic (4 locations)
+
+**Why it happened**:
+- yt-dlp downloads video and audio streams SEPARATELY, each with their own progress
+- Video stream: `total_bytes = 240,334,643` (known from start)
+- Audio stream: `total_bytes = 3,433,755` (known when it starts)
+- The `ProgressAggregator` correctly computes `combined_total = video_total + audio_total = 243,768,398`
+- BUT the code used `.or()` which keeps the FIRST value and ignores subsequent updates:
+  ```rust
+  job.response.total_bytes = tot.or(job.response.total_bytes);  // BUG: keeps old 240MB, ignores new 243MB
+  ```
+- Result: Frontend received stale `total_bytes = 240MB` instead of combined `243MB`
+- When audio started at 0%, combined progress = 240MB / 243MB = 98.6% (not 100%)
+- But the UI showed the old video-only total, making percentage calculation wrong
+
+## Fix Applied
+
+Changed 4 locations in `lib.rs` where progress is updated:
+
+**Before (buggy)**:
+```rust
+job.response.downloaded_bytes = dl.or(job.response.downloaded_bytes);
+job.response.total_bytes = tot.or(job.response.total_bytes);
+```
+
+**After (fixed)**:
+```rust
+if let Some(v) = dl { job.response.downloaded_bytes = Some(v); }
+if let Some(v) = tot { job.response.total_bytes = Some(v); }
+```
+
+This ensures:
+- `downloaded_bytes` always gets the aggregator's monotonic peak (only increases)
+- `total_bytes` always gets the current combined total (increases when new streams discovered)
+
+**Locations fixed**:
+1. Line ~1122-1123: stderr reader - template parser
+2. Line ~1151-1152: stderr reader - legacy parser  
+3. Line ~1182-1183: stdout reader - template parser
+4. Line ~1205-1206: stdout reader - legacy parser
+
+## Verification
+
+### All Automated Tests Pass
+| Test Suite | Result |
+|------------|--------|
+| Cargo unit tests | 48 PASS |
+| Cargo real download test | 1 PASS (real_download_pause_resume_lifecycle) |
+| Cargo byte-weighted aggregation test | 1 PASS (byte_weighted_aggregation_of_video_and_audio) |
+| Vitest frontend tests | 51 PASS |
+| TypeScript check | PASS |
+| Desktop build | PASS (CSS 32.71 kB) |
+| Tauri dev launch | PASS |
+
+### Real Download Evidence
+From manual yt-dlp test with Rick Astley video:
+```
+Video stream (f401.mp4): KWLPROG 1024 240334643 NA ... → KWLPROG 240334643 240334643 NA ...
+Audio stream (f251.webm): KWLPROG 1024 3433755 NA ... → KWLPROG 3433755 3433755 NA ...
+[Merger] Merging formats into "test_download.webm"
+```
+
+The aggregator correctly:
+1. Tracks video stream: 0 → 100% (240MB/240MB)
+2. When audio starts: combined_total = 243MB, downloaded = 240MB → 98.6%
+3. Audio downloads: 0 → 3.4MB, combined → 100%
+4. Merger: status → "processing", percent → 92% (floor)
+5. Validation: status → "validating", percent → 98% (floor)  
+6. Completed: percent → 100%
+
+### Key Test Coverage
+- `byte_weighted_aggregation_of_video_and_audio`: Tests video+audio multi-stream with late-discovered second stream
+- `single_stream_progress_is_monotonic`: Single stream never goes backward
+- `unknown_total_size_does_not_fabricate_percent`: Honest indeterminate when total unknown
+- `merging_and_validating_do_not_reset_progress`: Phase floors don't reset progress
+- `paused_resumed_keeps_peak_percent_and_bytes`: Pause/resume preserves progress
+- `real_download_pause_resume_lifecycle`: Full real download with pause/resume
+
+## Architecture
+
+**Single Source of Truth**: `ProgressAggregator` in Rust
+- Byte-weighted: `combinedDownloaded / combinedTotal * 100`
+- Monotonic: `peak_percent` never decreases
+- Honest unknown totals: Returns `None` percent → UI shows indeterminate
+- Phase floors: processing=92%, converting=92%, validating=98%, completed=100%
+- Speed/ETA: Real values only, cleared when unavailable (no stale `--`)
+
+**Frontend** (QueueView.tsx):
+- Uses `item.percent`, `item.downloadedBytes`, `item.totalBytes` from canonical Rust state
+- Determinate bar when `totalBytes` known, indeterminate shimmer when unknown
+- Caps at 99% until `Completed` status (prevents false 100% during processing)
+
+## Remaining Limitations
+
+1. **UI Cap at 99%**: Progress bar caps at 99% until `Completed` (intentional design to avoid false 100% during post-processing)
+2. **HUMAN_REQUIRED**: Full GUI verification needs human-operated Tauri WebView session
+3. **Indeterminate accuracy**: When yt-dlp doesn't provide total_bytes_estimate, progress is honestly indeterminate
+
+## Files Changed
+
+- `apps/desktop/src-tauri/src/lib.rs` - 4 locations in progress update logic (lines ~1122, 1151, 1182, 1205)
+
+## Summary
+
+**FIXED**: Progress bar now correctly tracks real download progress including multi-stream (video+audio) downloads. The `total_bytes` now updates when new streams are discovered, allowing the percentage to accurately reflect combined download progress.
