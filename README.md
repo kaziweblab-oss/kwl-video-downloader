@@ -1,90 +1,82 @@
-# KWL Video Downloader
+# 🎬 KWL Video Downloader
 
-**Version 1.0.0** - Free, offline, cross-platform video & audio downloader.
+[![Version](https://img.shields.io/badge/version-1.0.2-blue.svg)](https://github.com/kaziweblab-oss/kwl-video-downloader/releases)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Android%20%7C%20Linux%20%7C%20macOS-lightgrey.svg)]()
+[![Build](https://github.com/kaziweblab-oss/kwl-video-downloader/actions/workflows/build.yml/badge.svg)](https://github.com/kaziweblab-oss/kwl-video-downloader/actions)
+
+> Professional video/audio downloader built with Tauri 2, React, TypeScript, and Rust.
+
+**Version 1.0.2** — Free, offline, cross-platform video & audio downloader.
 
 KWL Video Downloader lets you download video and audio from the web in minutes.
 It is completely **free**, requires **no account, no login, and no license**, and
-runs entirely on your device. Paste a link, pick a format, and download - real-time
+runs entirely on your device. Paste a link, pick a format, and download — real-time
 progress, pause/resume, queue management, and history are all included.
 
-## Features
+---
 
-- Paste a link and analyze any supported media URL
-- Download video (MP4, WebM, MKV, AVI, MOV, FLV, 3GP) and audio (MP3, M4A, Opus, WAV)
-- Real-time progress with speed and ETA
-- Download queue with concurrent downloads (1-5)
-- Pause, resume, and cancel downloads
-- Automatic download history with missing-file reconciliation
-- 3GP output with FFmpeg transcoding
-- Built-in runtime tool management (yt-dlp / FFmpeg / ffprobe)
-- In-app report center: report an error, a suggestion, or feedback
-- English and Bangla UI (with more languages to come)
+## 📸 Screenshots
 
-## Reporting issues / feedback
+> *Coming soon — Add screenshots of the app here.*
 
-Users can report errors, suggestions, or feedback directly from the app
-(**Settings → "📧 Report Issue / Suggestion"**). Reports are emailed to the project
-team when configured, and otherwise saved locally and retried on the next launch.
-See [docs/REPORT.md](docs/REPORT.md).
+---
 
-## Platforms
+## ✨ Features
+
+- 📥 **Video & Audio Download** — Download from YouTube, Facebook, and thousands of sites
+- 🎯 **Format Selection** — MP4, WEBM, 3GP, MP3, M4A, OPUS, WAV
+- 📊 **Quality Control** — 1080p, 720p, 480p, with exact dimensions
+- 📋 **Queue Management** — Batch download with pause/resume/cancel
+- 🔄 **Real-time Progress** — Speed, ETA, downloaded/total size
+- 🎬 **3GP Conversion** — Convert videos to 3GP format
+- 📜 **Download History** — Track all your downloads
+- 🛠️ **Tool Management** — Auto-manages yt-dlp, FFmpeg, ffprobe
+- 🌗 **Dark & Light Themes** — Choose your preferred theme
+- 📧 **In-app Report Center** — Report errors, suggestions, or feedback
+- 🌐 **English & Bangla UI** — More languages coming soon
+
+---
+
+## 📥 Downloads
+
+| Platform | Download |
+|----------|----------|
+| **Windows** | [Download Installer](https://github.com/kaziweblab-oss/kwl-video-downloader/releases/latest/download/KWL-Video-Downloader_1.0.2_x64-setup.exe) |
+| **Android** | Coming Soon |
+| **Linux** | Coming Soon |
+| **macOS** | Coming Soon |
+
+---
+
+## 🚀 Quick Start
+
+1. Download the installer from [Releases](https://github.com/kaziweblab-oss/kwl-video-downloader/releases)
+2. Run the installer and follow the setup wizard
+3. Launch KWL Video Downloader
+4. Paste a video URL and click "Analyze"
+5. Select format and quality
+6. Click "Add to Queue" and enjoy!
+
+---
+
+## 📋 Platforms
 
 | Platform | Targets | Status |
 | --- | --- | --- |
-| Windows x64 | NSIS `.exe`, MSI `.msi` | v1.0.0 |
-| Android | `.apk` | v1.0.0 (requires Android SDK/Java toolchain to build) |
-| macOS | `.dmg` | v1.0.0 |
-| Linux | `.deb`, `.AppImage` | v1.0.0 |
+| Windows x64 | NSIS `.exe`, MSI `.msi` | ✅ v1.0.2 |
+| Android | `.apk` | 🚧 Building |
+| macOS | `.dmg` | 🚧 Building |
+| Linux | `.deb`, `.AppImage` | 🚧 Building |
 
-## Getting started
+---
 
-See [docs/INSTALL.md](docs/INSTALL.md) to build and install, and
-[docs/USAGE.md](docs/USAGE.md) for how to use the app.
+## 🛠️ Technology Stack
 
-Releases are published from the `main` branch via the GitHub Actions workflow in
-`.github/workflows/build.yml`.
+- **Frontend:** React, TypeScript, Vite, Tailwind CSS
+- **Backend:** Rust, Tauri 2
+- **Media Engine:** yt-dlp, FFmpeg, ffprobe
 
-## Development
+---
 
-### Prerequisites
-
-- Node.js 20+
-- Rust stable (rustup)
-- Tauri 2 prerequisites for your platform (see https://v2.tauri.app/start/prerequisites)
-
-### Commands
-
-```bash
-npm install          # install workspace dependencies
-npm run dev          # run the desktop app (Vite dev + Tauri)
-npm run check        # TypeScript typecheck
-npm test             # run the vitest suite
-npm run build        # build the frontend bundle
-```
-
-### Rust backend
-
-```bash
-cd apps/desktop/src-tauri
-cargo check
-cargo test
-```
-
-### Project layout
-
-- `apps/desktop` - Tauri 2 + React + TypeScript desktop/mobile app
-- `apps/desktop/src-tauri` - Rust backend (process orchestration lives here, behind typed Tauri commands)
-- `docs/` - architecture, specs, project state, and decision log
-
-## License & privacy
-
-KWL Video Downloader is free software and collects **no personal data**. Runtime
-tools (yt-dlp, FFmpeg, ffprobe) are detected or managed locally; nothing leaves
-your device except the download requests you make.
-
-## Release notes
-
-The v1.0.0 release includes: download, queue, history, 3GP, tool management, and
-an in-app report center. See [CHANGELOG.md](CHANGELOG.md) for details.
-
-KWL Nexus (cloud account, plans, licensing) is planned for a future release.
+## 📂 Project Layout
