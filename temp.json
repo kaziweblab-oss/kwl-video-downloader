@@ -1,0 +1,27 @@
+{
+  "version": "1.0.0",
+  "notes": "Initial v1.0.0 release — free offline downloader. Next update (v1.0.1) will be signed by CI via TAURI_SIGNING_PRIVATE_KEY.",
+  "pub_date": "2026-08-29T10:00:00Z",
+  "platforms": {
+    "windows-x86_64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTQVMzRG9TaURTWWJYSzNBUnlYTXNnUWFTMG8wajAxQlVGR0htR3o2WmpSb1R4emZqNkYxY0pxd3Fmd2R4U2JMR05NVi9ucTZPb0I0dlM2TVVmc2greFllZVA0S3R4VEFzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg4MDEzMTM5CWZpbGU6S1dMIFZpZGVvIERvd25sb2FkZXJfMS4wLjBfeDY0LXNldHVwLmV4ZQpuL2JaeGRqRklDamk1UVQ3ZUdkTUFUVmZCU0hjakdWQjlCSjd0MmV0SXA1SmxOenJnKzczTHhYS3hSR0lZbkUxV0RsOVBSWDhLUzVFcFkzdDd5Ti9EQT09Cg==",
+      "url": "https://github.com/kwl/video-downloader/releases/download/v1.0.0/KWL-Video-Downloader_1.0.0_x64-setup.exe"
+    },
+    "windows-i686": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTQVMzRG9TaURTWVVreThxM2Z1dXRSeEdNSDBzR1d1YVFiSE56bDRlTnFTRk5ZQ0tJRUFRbkpuQzdmZTRjQ0dGTmtlZVRoVHhpNjAvc1dnVTdEUmpkMTlNcjhnV29ZdXc4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg4MDEzMTM5CWZpbGU6S1dMIFZpZGVvIERvd25sb2FkZXJfMS4wLjBfeDY0X2VuLVVTLm1zaQppTHZFekwvTXNOQXduOGRtSW05VmZkbEJKV0RRL0gwR2hPRGhHVXlKZXMyczFrMHk5eDk2ZGthQXFWVDdmQXpwYm5na0JWZnlaYnpoU05jZ0hQUmZDUT09Cg==",
+      "url": "https://github.com/kwl/video-downloader/releases/download/v1.0.0/KWL-Video-Downloader_1.0.0_x64_en-US.msi"
+    },
+    "linux-x86_64": {
+      "signature": "",
+      "url": "https://github.com/kwl/video-downloader/releases/download/v1.0.0/KWL-Video-Downloader_1.0.0_amd64.deb"
+    },
+    "darwin-x86_64": {
+      "signature": "",
+      "url": "https://github.com/kwl/video-downloader/releases/download/v1.0.0/KWL-Video-Downloader_1.0.0_x64.dmg"
+    },
+    "darwin-aarch64": {
+      "signature": "",
+      "url": "https://github.com/kwl/video-downloader/releases/download/v1.0.0/KWL-Video-Downloader_1.0.0_aarch64.dmg"
+    }
+  }
+}

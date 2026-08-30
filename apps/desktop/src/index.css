@@ -6,58 +6,100 @@
   :root {
     font-weight: 500;
     line-height: 1.5;
-    font-synthesis: none;
-    text-rendering: optimizeLegibility;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
+    color-scheme: dark;
+  }
+  :root[data-theme="light"] {
+    color-scheme: light;
   }
 
-  html,
-  body,
-  #root {
-    min-height: 100%;
-    min-width: 100%;
-    background:
-      radial-gradient(circle at top, rgba(56, 189, 248, 0.18), transparent 35%),
-      linear-gradient(180deg, #030b16 0%, #07111f 100%);
-    color: #e2e8f0;
+  html, body, #root {
+    min-height: 100vh;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    background: #030b16;
+    overflow-x: hidden;
+    overscroll-behavior: none;
+  }
+  html[data-theme="light"], html[data-theme="light"] body, html[data-theme="light"] #root {
+    background: #f1f5f9;
+  }
+  html[data-theme="light"] .app-container {
+    background: #f1f5f9 !important;
   }
 
-  button,
-  label,
-  [role='button'] {
-    cursor: pointer;
+  * {
+    scroll-behavior: smooth;
   }
 
-  button:disabled,
-  input:disabled,
-  select:disabled,
-  textarea:disabled {
-    cursor: not-allowed;
+  /* Pull-to-refresh: main scroll container allows contained overscroll for gesture */
+  .main-content {
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
   }
 
-  .custom-scrollbar {
-    scrollbar-width: thin;
-    scrollbar-color: rgba(148, 163, 184, 0.35) transparent;
-  }
-  .custom-scrollbar::-webkit-scrollbar {
+  ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
   }
-  .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: rgba(148, 163, 184, 0.35);
-    border-radius: 9999px;
+  ::-webkit-scrollbar-track {
+    background: #0f172a;
   }
-  .custom-scrollbar::-webkit-scrollbar-track {
-    background: transparent;
+  ::-webkit-scrollbar-thumb {
+    background: #1e293b;
+    border-radius: 3px;
   }
+  html[data-theme="light"] ::-webkit-scrollbar-track {
+    background: #e2e8f0;
+  }
+  html[data-theme="light"] ::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+  }
+  /* hide scrollbar for wizard steps */
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+}
 
-  @keyframes shimmer {
-    0% {
-      transform: translateX(-100%);
-    }
-    100% {
-      transform: translateX(350%);
-    }
-  }
+.app-container {
+  min-height: 100vh;
+  background: #030b16;
+  background-image: radial-gradient(ellipse at 50% 0%, rgba(56,189,248,0.08) 0%, transparent 70%),
+    linear-gradient(180deg, #030b16 0%, #07111f 100%);
+}
+html[data-theme="light"] .app-container {
+  background: #f1f5f9 !important;
+  background-image: none !important;
+}
+html[data-theme="light"] .main-content {
+  background: #f1f5f9 !important;
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(350%); }
+}
+
+.shimmer {
+  animation: shimmer 1.2s ease-in-out infinite;
+}
+
+@keyframes pull-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2px); }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-in {
+  animation: fade-in 220ms ease-out;
 }

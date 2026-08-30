@@ -1,3 +1,5 @@
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 #[tauri::command(rename = "validate_url")]
 fn validate_url(request: kwl_video_downloader::UrlRequest) -> Result<bool, String> {
     kwl_video_downloader::validate_url_impl(request)
@@ -100,10 +102,47 @@ fn send_report(report: kwl_video_downloader::report::ReportInput) -> Result<(), 
     kwl_video_downloader::report::send_report(report)
 }
 
+#[tauri::command(rename = "get_versions")]
+fn get_versions(app_id: Option<String>) -> Vec<kwl_video_downloader::versions::VersionRecord> {
+    kwl_video_downloader::versions::get_versions_impl(app_id)
+}
+
+#[tauri::command(rename = "add_version")]
+fn add_version(request: kwl_video_downloader::versions::AddVersionInput) -> Result<Vec<kwl_video_downloader::versions::VersionRecord>, String> {
+    kwl_video_downloader::versions::add_version_impl(request)
+}
+
+#[tauri::command(rename = "update_version")]
+fn update_version(request: kwl_video_downloader::versions::UpdateVersionInput) -> Result<Vec<kwl_video_downloader::versions::VersionRecord>, String> {
+    kwl_video_downloader::versions::update_version_impl(request)
+}
+
+#[tauri::command(rename = "delete_version")]
+fn delete_version(id: String) -> Result<Vec<kwl_video_downloader::versions::VersionRecord>, String> {
+    kwl_video_downloader::versions::delete_version_impl(id)
+}
+
+#[tauri::command(rename = "sync_github_release")]
+fn sync_github_release(payload: kwl_video_downloader::versions::GithubReleasePayload) -> Result<Vec<kwl_video_downloader::versions::VersionRecord>, String> {
+    kwl_video_downloader::versions::sync_github_release_impl(payload)
+}
+
+#[tauri::command(rename = "get_autostart_enabled")]
+fn get_autostart_enabled() -> bool {
+    kwl_video_downloader::autostart::is_autostart_enabled_impl()
+}
+
+#[tauri::command(rename = "set_autostart_enabled")]
+fn set_autostart_enabled(enabled: bool) -> Result<bool, String> {
+    kwl_video_downloader::autostart::set_autostart_enabled_impl(enabled)
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_store::Builder::default().build())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .setup(|app| {
             kwl_video_downloader::app_setup(app.handle());
             Ok(())
@@ -134,7 +173,14 @@ fn main() {
             get_tools_status,
             startup_tool_check,
             get_tool_status,
-            send_report
+            send_report,
+            get_versions,
+            add_version,
+            update_version,
+            delete_version,
+            sync_github_release,
+            get_autostart_enabled,
+            set_autostart_enabled
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

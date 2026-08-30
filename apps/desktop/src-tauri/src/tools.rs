@@ -5,6 +5,22 @@ use std::process::Command;
 use std::sync::{Mutex, OnceLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+#[cfg(windows)]
+const CREATE_NO_WINDOW: u32 = 0x08000000;
+
+#[cfg(windows)]
+fn cmd_hidden<S: AsRef<std::ffi::OsStr>>(prog: S) -> Command {
+    use std::os::windows::process::CommandExt;
+    let mut c = Command::new(prog);
+    c.creation_flags(CREATE_NO_WINDOW);
+    c
+}
+
+#[cfg(not(windows))]
+fn cmd_hidden<S: AsRef<std::ffi::OsStr>>(prog: S) -> Command {
+    Command::new(prog)
+}
+
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct ToolEntry {
     pub name: String,
@@ -140,7 +156,7 @@ pub fn health_check_executable(path: &Path, tool: &str) -> bool {
     let args = expected_args(tool);
     // Avoid executing arbitrary path if not in managed dir or not absolute? For health, we allow managed + PATH fallback
     // Basic validation: must be file and executable
-    match Command::new(path).args(&args).output() {
+    match cmd_hidden(path).args(&args).output() {
         Ok(o) => o.status.success() && !String::from_utf8_lossy(&o.stdout).trim().is_empty(),
         Err(_) => false,
     }
@@ -290,7 +306,7 @@ pub fn get_tool_status(tool: &str) -> ToolStatusResponse {
 
 fn get_version_for_path(path: &Path, tool: &str) -> Option<String> {
     let args = expected_args(tool);
-    Command::new(path)
+    cmd_hidden(path)
         .args(&args)
         .output()
         .ok()

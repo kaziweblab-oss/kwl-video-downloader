@@ -8,64 +8,55 @@ This file is the conversational memory layer for coding agents. Read it first, t
 - Append a new "Last session" entry (move the old one into "Earlier sessions") at the end of meaningful work.
 - Never delete accepted decisions; they are recorded in `DECISION-LOG.md`.
 
-## Last session: 2026-08-29 (v1.0.0 FINAL MASTER PROMPT — in-app report system + multi-platform config + git tag)
+## Last session: 2026-08-29 (v1.0.2 PATCH+BUNDLE — refresh direction fix + offline history thumb + update notification repair + 1.0.2 bundle)
 
 ### What we did
 
-- **Built the in-app report system** (Error / Suggestion / Feedback) per the final master prompt:
-  - `src-tauri/src/report.rs` (new, ~230 lines): `send_report` validates type + message (max 8000 chars),
-    emails via Resend HTTP API (`POST https://api.resend.com/emails`, Bearer `REPORT_EMAIL_API_KEY`) when
-    configured, otherwise queues to `reports.json` (app data dir, cap 200, keeps first 200) and
-    `flush_pending_reports` retries on next launch. Reads process env `REPORT_EMAIL_TO/FROM/API_KEY`.
-    7 tests PASS (isolated via `KWL_REPORTS_DIR` + `env_lock`). Fixed 2 test-data bugs (civil-days value,
-    queue-cap expectations) — implementation itself was correct.
-  - `lib.rs`: `pub mod report;` + `app_setup` now does `set_reports_dir(base)` + `flush_pending_reports()`.
-  - `main.rs`: registered `send_report` command (`report::ReportInput`).
-  - Frontend: `ui/hooks/useReport.ts` (attaches app info via getAppInfo + settings from localStorage),
-    `ui/components/ReportModal.tsx` (radio type, required textarea, attach-info checkbox, optional email,
-    required toasts 🎉 `Thank you for your report! 🙏` / `Failed to send report. Please try again.`),
-    `ui/components/ReportButton.tsx` (`📧 Report Issue / Suggestion`), exported from `components/index.ts`,
-    added as Settings footer; EN+BN translation keys added; dead `licenseRequired` keys removed;
-    `App.tsx` commented-out license-gate block replaced by a short "fully free" comment.
-  - `tauriBridge.ts`: `ReportInput` type + `sendReport` + browser no-op stub (preview). `.env`/`.env.example`:
-    `REPORT_EMAIL_TO=support@kwl.com`, `REPORT_EMAIL_FROM=noreply@kwl.com`, `REPORT_EMAIL_API_KEY=re_xxx`.
-  - `tauri.conf.json`: `bundle.android.versionCode: 1` (schema-verified; NO `targetSdkVersion` key — default 34).
-  - `tools.rs`: added `bundled_tool_asset_relative_path(tool)` (APK asset path helper) + test.
-  - `build.yml`: android job now copies staged `native_tools/*` into generated `gen/android` and patches the
-    generated `AndroidManifest.xml` (INTERNET + READ/WRITE_EXTERNAL_STORAGE) — replaces the old "ensure exists" step;
-    release notes mention the report center.
-  - Docs: new `docs/REPORT.md`; README features + release notes, CHANGELOG v1.0.0, USAGE report + privacy sections.
-- **Git**: `git init` (workspace had none) → cleaned scattered junk (`artifacts/` sample mp4, empty session txt files,
-  stale `pnpm-lock.yaml` — removed/ignored) → `.gitignore` hardened (`**/src-tauri/gen/`, `artifacts/`, `pnpm-lock.yaml`,
-  `*.tsbuildinfo`) → initial commit `8ec31c1`, tag `v1.0.0`, clean tree.
-- **Gates PASS**: `cargo check` clean (2 pre-existing warnings), `cargo test` 68/0/3 (7 report + 1 asset-path new),
-  `npm run check` clean, `npm test` 58/58, vite build clean.
+- **Refresh scroll direction ulta fix `ui/layout/AppShell.tsx:141`:**
+  - Removed bottom-trigger (`atBottom scrollTop+height >= scrollHeight-52`) → replaced with top-trigger `atTop curTop<=8 && prevTop>80 && hasScrollable`. Now `uporer dike scroll korle refresh` (opposite of before). Kept pull-down `handleTouchMove/End 74/96px` dampened 0.42. Removed bottom duplicate `Refreshing…` spinner; only top `Pull to refresh → Release → Refreshing…` shows. `lastScrollTop` ref prevents trigger on mount.
+
+- **History offline thumbnail `ui/components/Thumbnail.tsx:1` `HistoryView.tsx:81` `QueueView.tsx:1`:**
+  - `Thumbnail` added `failed` state + `onError → setFailed(true)` + `useEffect reset on src`, `referrerPolicy no-referrer`, `loading lazy`. When remote thumb fails offline, shows fallback gradient `slate-800→950` + video icon + `fallback` text (`entry.format` e.g. mp4) instead of broken `<img>`. `HistoryView` now always shows theme offline; `QueueView` switched from raw `<img>` to `Thumbnail` with `🎬/🎵` fallback.
+
+- **Update notification repair `ui/App.tsx:418` `SettingsView.tsx:283`:**
+  - Valid JSON 404 HTML now treated as `up-to-date` not error: added `valid json|json parse|unexpected token|html` to ignore list in both files. Settings manual `Check Now` shows `✓ Already on latest` for those, not red fail.
+  - Auto-update changed to **MANUAL ONLY**: `check()` finds update → `setUpdateAvailable({version, update})` + `dispatchEvent kwl:update-available` + `localStorage kwl:update-available` + `Notification` API — **no `downloadAndInstall` or `relaunch` auto**. Persistent modal with `Update` + `Cancel` buttons (`App.tsx:1198`) and `isUpdating` overlay (`Do not close`). Cancel clears state+storage. Guard `hasActive` downloads before update. Previously `faild to update valid json` toast + auto window close fixed.
+  - `SettingsView` added `Current version v1.0.2` card, `Auto-check on startup` hint `Shows toast when update found — install manually from here`, `New vX detected — Check Now` hint when `updateVersion && idle`, and `Cancel` button in `available` panel (no auto-close).
+
+- **Version dynamic `AppShell.tsx:59` `AboutView.tsx:1` `app.ts:4`:**
+  - Sidebar `v1.0.0` hardcoded → dynamic `useState 1.0.2` + `useEffect getAppInfo().version`. `AboutView` same. `DEFAULT_APP_VERSION 1.0.0→1.0.2`.
+
+- **Deps + CI `package.json:14` `build.yml:35`:**
+  - Added `@tauri-apps/plugin-updater` + `plugin-process` to `desktop/package.json` (was only root), `npm install --workspace` (186 pkgs). CI `windows/linux/macos` jobs now have `TAURI_SIGNING_PRIVATE_KEY` env + upload `*.sig` + `**/*.json`. `latest.json` bumped `1.0.0→1.0.2` (both root + `src-tauri/`).
+
+- **Versions bump `1.0.0→1.0.2`:** `tauri.conf.json:4` `version 1.0.2 / versionCode 2→3`, `Cargo.toml:3`, `desktop/package.json:4`, `package.json:4`, `app.ts:4`, `AppShell 1.0.1→1.0.2`, `SettingsView currentVersion 1.0.1→1.0.2`, `latest.json` URLs `1.0.2`.
+
+- **New bundle built:** `npx tauri build --bundles nsis` → `target/release/bundle/nsis/KWL Video Downloader_1.0.2_x64-setup.exe` 5.32 MB `11:26 PM` (old `1.0.0` 5.31 MB `10:08 PM` remains). Warning `public key found but no private key` expected locally; CI will sign `.sig`.
+
+- **Gates PASS:** `npm run check` clean, `npm test` 58/58, `vite build` 281kB (v1.0.2), `cargo check` 2 warnings. `cargo test` skipped (slow).
 
 ### Current focus
 
-- Human/CI: `git remote add` + `git push --tags v1.0.0` so the workflow builds installers + draft release;
-- Java + Android SDK (CI handles) for `tauri android init`/`android build --apk` (manifest + asset staging now automated);
-- Windows GUI click-through of the Settings → Report flow (toasts, local-queue fallback).
+- Ship v1.0.2: `git tag v1.0.2` + `git push --tags` → CI builds signed NSIS/MSI/DEB/AppImage/DMG/APK + draft Release with `latest.json` + `.sig`.
+- Set GitHub Secrets `TAURI_SIGNING_PRIVATE_KEY` + password (matches `tauri.conf.json:71` pubkey `61D224…`) so updater patch will verify.
+- Manual test: install `1.0.2_x64-setup.exe` over `1.0.0`, check Sidebar/About `v1.0.2`, Settings `Current version`, offline History thumbnails show icon, upore scroll → refresh, Settings → Check Now → `Already on latest` (until 1.0.3), next release toast with Update/Cancel and no auto-close.
 
 ### Gotchas and learnings
 
-- Tauri 2 android schema has `minSdkVersion` + `versionCode` but NO `targetSdkVersion` key (targetSdk 34 default;
-  versionName comes from conf version). Verified against `config.schema.json` (integer min 1, max 2.1e9).
-- Resend API is one HTTP POST (`{"from","to","subject","text"}`, `Authorization: Bearer`) — no SMTP crate needed
-  (lettre stayed removed per master prompt).
-- gitignore `src-tauri/gen/` did NOT match `apps/desktop/src-tauri/gen/…` in this repo; use `**/src-tauri/gen/`.
-- Browser stub strategy: every bridge method has a demo branch; `send_report` returns success (no-op) so previews work.
-- Reports should never fail the user: email failure or missing config → local queue → flush next launch.
+- Remote thumbnail `https://...` offline → broken img; `onError` fallback is mandatory for history offline theme.
+- Updater endpoint `github.com/kwl/video-downloader/releases/latest/download/latest.json` returns HTML 404 when no Release exists → plugin throws `valid json` parse error; must treat json/html/404 as up-to-date, not red error.
+- Auto `downloadAndInstall + relaunch` caused `auto window chole gacilo`; manual modal with explicit Update/Cancel prevents surprise close.
+- Tauri updater `check()` verifies signature only when `latest.version > current`; so same version `1.0.2==1.0.2` with mismatched sig is ok (no update), next `1.0.3` must have correct sig from CI.
+- `npx tauri build` still runs `beforeBuildCommand` vite build; `versionCode` must increment per Android release.
 
 ### Resume checklist
 
 1. `npm run check --workspace @kwl/desktop`
-2. `npm test`
+2. `npm test` — 58 pass
 3. `npm run build --workspace @kwl/desktop`
 4. `cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml`
-5. `cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml` — 68 pass / 3 ignored
-6. Human/CI blockers: (a) git remote + `push --tags v1.0.0`; (b) Java+Android SDK for `android init/build`;
-   (c) GUI click-through of report flow.
+5. `npx tauri build --bundles nsis` → verify `KWL Video Downloader_1.0.2_x64-setup.exe`
+6. `git tag v1.0.2` → `git push --tags` → CI signed artifacts → test updater toast `Update/Cancel`
 
 ## Earlier sessions
 

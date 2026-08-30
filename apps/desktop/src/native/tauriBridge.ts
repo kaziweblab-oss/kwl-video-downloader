@@ -142,16 +142,25 @@ async function invokeTauri<T>(command: string, payload?: Record<string, unknown>
     }
 
     if (command === 'analyze_url') {
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        throw new Error('No internet connection. Please check your network and try again.');
+      }
       const url = String((payload?.request as { url?: string } | undefined)?.url ?? 'https://example.com/video');
       return buildFallbackAnalysisResponse(url) as T;
     }
 
     if (command === 'analyze_playlist') {
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        throw new Error('No internet connection. Please check your network and try again.');
+      }
       const url = String((payload?.request as { url?: string } | undefined)?.url ?? 'https://example.com/playlist');
       return buildFallbackPlaylistResponse(url) as T;
     }
 
     if (command === 'start_download') {
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        throw new Error('No internet connection. Please check your network and try again.');
+      }
       const request = (payload?.request as DownloadRequestPayload | undefined) ?? {
         url: 'https://example.com/video',
         media_type: 'video',

@@ -1,0 +1,35 @@
+{
+  "version": "1.0.3",
+  "notes": "Patch v1.0.3 — History thumbnail center, dark/light theme sync, offline guard, queue pause & duplicate fixes",
+  "pub_date": "2026-08-30T10:00:00Z",
+  "platforms": {
+    "windows-x86_64": {
+      "signature": "",
+      "url": "https://github.com/kwl/video-downloader/releases/download/v1.0.3/KWL-Video-Downloader_1.0.3_x64-setup.exe"
+    },
+    "windows-i686": {
+      "signature": "",
+      "url": "https://github.com/kwl/video-downloader/releases/download/v1.0.3/KWL-Video-Downloader_1.0.3_x86-setup.exe"
+    },
+    "linux-x86_64": {
+      "signature": "",
+      "url": "https://github.com/kwl/video-downloader/releases/download/v1.0.3/KWL-Video-Downloader_1.0.3_amd64.AppImage"
+    },
+    "darwin-x86_64": {
+      "signature": "",
+      "url": "https://github.com/kwl/video-downloader/releases/download/v1.0.3/KWL-Video-Downloader_1.0.3_x64.dmg"
+    },
+    "darwin-aarch64": {
+      "signature": "",
+      "url": "https://github.com/kwl/video-downloader/releases/download/v1.0.3/KWL-Video-Downloader_1.0.3_aarch64.dmg"
+    },
+    "android-aarch64": {
+      "signature": "",
+      "url": "https://github.com/kwl/video-downloader/releases/download/v1.0.3/KWL-Video-Downloader_1.0.3_android.apk"
+    },
+    "android-armv7": {
+      "signature": "",
+      "url": "https://github.com/kwl/video-downloader/releases/download/v1.0.3/KWL-Video-Downloader_1.0.3_android-armv7.apk"
+    }
+  }
+}

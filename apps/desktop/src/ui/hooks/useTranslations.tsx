@@ -147,6 +147,18 @@ queueLabel: string;
     reportSending: string;
     reportSuccess: string;
     reportFailed: string;
+    aboutDescription: string;
+    aboutPlatform: string;
+    aboutVersion: string;
+    aboutClosedSource: string;
+    aboutPrivacyPolicy: string;
+    aboutProductOf: string;
+    aboutPrivacyTitle: string;
+    aboutPrivacyContent: string;
+    aboutAllRightsReserved: string;
+    gitHub: string;
+    reportIssue: string;
+    privacyPolicy: string;
 };
 
 const translations: Record<Language, Translations> = {
@@ -294,6 +306,18 @@ const translations: Record<Language, Translations> = {
     reportSending: 'Sending…',
     reportSuccess: 'Thank you for your report! 🙏',
     reportFailed: 'Failed to send report. Please try again.',
+    aboutDescription: 'A modern video downloader built with Tauri 2, React, TypeScript, and Rust. Supports multi-format downloads, real-time progress, pause/resume, and history management.',
+    aboutPlatform: 'Windows x64',
+    aboutVersion: 'Version',
+    aboutClosedSource: 'Closed source — All rights reserved. Source code is not public.',
+    aboutPrivacyPolicy: 'Privacy Policy',
+    aboutProductOf: 'A Product of Kazi Web Lab (KWL)',
+    aboutPrivacyTitle: 'Privacy Policy',
+    aboutPrivacyContent: 'KWL Video Downloader is closed source. Your downloads are stored locally on your device. We do not collect personal data, browsing history, or download content. Network is used only to fetch video info (yt-dlp) and to check for app updates (GitHub Releases). No analytics or tracking. You can use the app offline for History and Settings; online is required only for analyzing/downloading new links.',
+    aboutAllRightsReserved: '© 2026 KWL. All rights reserved.',
+    gitHub: 'GitHub',
+    reportIssue: 'Report Issue',
+    privacyPolicy: 'Privacy Policy',
   },
   bn: {
     brand: 'KWL ভিডিও ডাউনলোডার',
@@ -439,6 +463,18 @@ const translations: Record<Language, Translations> = {
     reportSending: 'পাঠানো হচ্ছে…',
     reportSuccess: 'আপনার রিপোর্টের জন্য ধন্যবাদ! 🙏',
     reportFailed: 'রিপোর্ট পাঠানো ব্যর্থ হয়েছে। আবার চেষ্টা করুন।',
+    aboutDescription: 'Tauri 2, React, TypeScript এবং Rust দিয়ে তৈরি একটি আধুনিক ভিডিও ডাউনলোডার। মাল্টি-ফরম্যাট ডাউনলোড, রিয়েল-টাইম প্রগ্রেস, বিরতি/পুনরায় শুরু এবং ইতিহাস ব্যবস্থাপনা সমর্থন করে।',
+    aboutPlatform: 'Windows x64',
+    aboutVersion: 'ভার্সন',
+    aboutClosedSource: 'ক্লোজড সোর্স — সর্বস্বত্ব সংরক্ষিত। সোর্স কোড উন্মুক্ত নয়।',
+    aboutPrivacyPolicy: 'গোপনীয়তা নীতি',
+    aboutProductOf: 'Kazi Web Lab (KWL) এর একটি পণ্য',
+    aboutPrivacyTitle: 'গোপনীয়তা নীতি',
+    aboutPrivacyContent: 'KWL Video Downloader ক্লোজড সোর্স। আপনার ডাউনলোডগুলি আপনার ডিভাইসে স্থানীয়ভাবে সংরক্ষিত হয়। আমরা ব্যক্তিগত ডেটা, ব্রাউজিং ইতিহাস বা ডাউনলোড কন্টেন্ট সংগ্রহ করি না। নেটওয়ার্ক শুধুমাত্র ভিডিও তথ্য আনতে (yt-dlp) এবং অ্যাপ আপডেট চেক করতে (GitHub Releases) ব্যবহৃত হয়। কোনো অ্যানালিটিক্স বা ট্র্যাকিং নেই। History এবং Settings অফলাইনে ব্যবহার করা যায়; শুধুমাত্র নতুন লিঙ্ক বিশ্লেষণ/ডাউনলোড করতে অনলাইন প্রয়োজন।',
+    aboutAllRightsReserved: '© ২০২৬ KWL। সর্বস্বত্ব সংরক্ষিত।',
+    gitHub: 'গিটহাব',
+    reportIssue: 'সমস্যা রিপোর্ট করুন',
+    privacyPolicy: 'গোপনীয়তা নীতি',
   },
 };
 

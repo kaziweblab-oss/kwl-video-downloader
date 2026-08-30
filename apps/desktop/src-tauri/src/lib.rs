@@ -7,8 +7,26 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Mutex, OnceLock};
 use std::thread;
 
+#[cfg(windows)]
+const CREATE_NO_WINDOW: u32 = 0x08000000;
+
+#[cfg(windows)]
+fn cmd_hidden<S: AsRef<std::ffi::OsStr>>(program: S) -> Command {
+    use std::os::windows::process::CommandExt;
+    let mut cmd = Command::new(program);
+    cmd.creation_flags(CREATE_NO_WINDOW);
+    cmd
+}
+
+#[cfg(not(windows))]
+fn cmd_hidden<S: AsRef<std::ffi::OsStr>>(program: S) -> Command {
+    Command::new(program)
+}
+
+pub mod autostart;
 pub mod report;
 pub mod tools;
+pub mod versions;
 
 /// Application startup hook: registers the bundled native tools base directory
 /// (Android host extracts `assets/native_tools/*` into the app data dir),
@@ -18,7 +36,8 @@ pub fn app_setup(app: &tauri::AppHandle) {
     use tauri::Manager;
     let base = app.path().app_data_dir().ok();
     tools::set_bundled_tools_base(base.clone());
-    report::set_reports_dir(base);
+    report::set_reports_dir(base.clone());
+    versions::set_versions_dir(base);
     report::flush_pending_reports();
     tools::background_update_check();
 }
@@ -201,6 +220,14 @@ impl ProgressAggregator {
                         combined_total = Some(estimated_total);
                     }
                 }
+            }
+        }
+
+        // FIX: Never allow downloaded > total — when audio stream discovered, ensure total is updated
+        // If combined_downloaded exceeds combined_total (stale total), clamp total to downloaded so percent never >100 and bytes display honest
+        if let Some(total) = combined_total {
+            if combined_downloaded > total {
+                combined_total = Some(combined_downloaded);
             }
         }
 
@@ -404,7 +431,7 @@ pub fn open_media_file_impl(path: String) -> Result<(), String> {
     let file = validate_media_path(&path)?;
     #[cfg(target_os = "windows")]
     {
-        Command::new("cmd")
+        cmd_hidden("cmd")
             .args(["/C", "start", "", &file.to_string_lossy()])
             .spawn()
             .map_err(|_| "Unable to open media file".to_string())?;
@@ -421,7 +448,7 @@ pub fn reveal_media_in_explorer_impl(path: String) -> Result<(), String> {
     let file = validate_media_path(&path)?;
     #[cfg(target_os = "windows")]
     {
-        Command::new("explorer.exe")
+        cmd_hidden("explorer.exe")
             .args(["/select,", &file.to_string_lossy()])
             .spawn()
             .map_err(|_| "Unable to reveal media file".to_string())?;
@@ -442,6 +469,37 @@ fn create_temp_directory(job_id: &str) -> Result<PathBuf, String> {
 
 fn cleanup_temp_directory(path: &PathBuf) {
     let _ = fs::remove_dir_all(path);
+}
+
+fn cleanup_output_part_files(job: &JobState) {
+    // yt-dlp leaves `Title.mp4.part` / `.ytdl` / `.tmp` in the output directory on failure/cancel.
+    // We delete the known .part file for this job so the download folder doesn't fill with orphaned PARTs.
+    let mut candidates: Vec<PathBuf> = Vec::new();
+    if let Some(name) = job.response.filename.as_deref() {
+        let p = PathBuf::from(name);
+        if p.to_string_lossy().contains(".part") || p.to_string_lossy().ends_with(".ytdl") || p.to_string_lossy().ends_with(".tmp") {
+            if p.is_file() {
+                candidates.push(p);
+            }
+        }
+    }
+    // Also check output_path as file + .part suffix (covers case where filename wasn't set)
+    if let Some(dir) = job.response.output_path.as_deref() {
+        let with_part = PathBuf::from(format!("{}.part", dir));
+        if with_part.is_file() {
+            candidates.push(with_part);
+        }
+        let with_ytdl = PathBuf::from(format!("{}.ytdl", dir));
+        if with_ytdl.is_file() {
+            candidates.push(with_ytdl);
+        }
+    }
+    for p in candidates {
+        if p.is_file() {
+            let _ = fs::remove_file(&p);
+            eprintln!("[CLEANUP] Deleted output .part: {}", p.display());
+        }
+    }
 }
 
 #[cfg(target_os = "windows")]
@@ -665,7 +723,7 @@ fn resolve_yt_dlp() -> Result<String, String> {
     }
 
     for candidate in ["yt-dlp", "yt-dlp.exe", "python", "py"] {
-        let mut cmd = Command::new(candidate);
+        let mut cmd = cmd_hidden(candidate);
         let version_output = match candidate {
             "python" | "py" => {
                 cmd.arg("-m").arg("yt_dlp").arg("--version").output()
@@ -704,7 +762,7 @@ fn resolve_ffprobe() -> Result<String, String> {
     }
 
     for candidate in ["ffprobe", "ffprobe.exe"] {
-        if Command::new(candidate).arg("-version").output().map(|output| output.status.success()).unwrap_or(false) {
+        if cmd_hidden(candidate).arg("-version").output().map(|output| output.status.success()).unwrap_or(false) {
             return Ok(candidate.to_string());
         }
     }
@@ -729,7 +787,7 @@ fn resolve_ffmpeg() -> Result<String, String> {
         }
     }
     for candidate in ["ffmpeg", "ffmpeg.exe"] {
-        if Command::new(candidate).arg("-version").output().map(|output| output.status.success()).unwrap_or(false) {
+        if cmd_hidden(candidate).arg("-version").output().map(|output| output.status.success()).unwrap_or(false) {
             return Ok(candidate.to_string());
         }
     }
@@ -754,7 +812,7 @@ fn validate_output_file(path: &str) -> Result<(), String> {
             }
         }
     };
-    let output = Command::new(ffprobe)
+    let output = cmd_hidden(ffprobe)
         .args(["-v", "error", "-show_entries", "format=duration", "-show_entries", "stream=codec_type", "-of", "json"])
         .arg(file)
         .output()
@@ -988,7 +1046,7 @@ pub fn validate_url_impl(request: UrlRequest) -> Result<bool, String> {
 pub fn get_app_info_impl() -> AppInfoResponse {
     AppInfoResponse {
         name: "KWL Video Downloader".to_string(),
-        version: "1.0.0".to_string(),
+        version: env!("CARGO_PKG_VERSION").to_string(),
         platform: "windows".to_string(),
         environment: "development".to_string(),
     }
@@ -998,7 +1056,7 @@ pub fn analyze_url_impl(request: UrlRequest) -> Result<String, String> {
     validate_url_impl(UrlRequest { url: request.url.clone() })?;
 
     let binary = resolve_yt_dlp()?;
-    let mut command = Command::new(&binary);
+    let mut command = cmd_hidden(&binary);
 
     if binary == "python" || binary == "py" {
         command.arg("-m").arg("yt_dlp");
@@ -1033,7 +1091,7 @@ pub fn analyze_playlist_impl(request: UrlRequest) -> Result<Vec<String>, String>
     validate_url_impl(UrlRequest { url: request.url.clone() })?;
 
     let binary = resolve_yt_dlp()?;
-    let mut command = Command::new(&binary);
+    let mut command = cmd_hidden(&binary);
 
     if binary == "python" || binary == "py" {
         command.arg("-m").arg("yt_dlp");
@@ -1108,7 +1166,7 @@ pub fn start_download_impl(request: DownloadRequestInput) -> Result<DownloadJobR
     let transcode_requested = needs_3gp_transcode(&request.container, request.transcode.unwrap_or(false));
     let transcode_resolution = request.resolution.clone().unwrap_or_default();
 
-    let mut command = Command::new(&binary);
+    let mut command = cmd_hidden(&binary);
     if binary == "python" || binary == "py" {
         command.arg("-m").arg("yt_dlp");
     }
@@ -1351,6 +1409,8 @@ pub fn start_download_impl(request: DownloadRequestInput) -> Result<DownloadJobR
                             });
                             job.history.status = "failed".to_string();
                             write_history(job.history.clone());
+                            // Remove leftover .part / invalid output to prevent orphaned PART files in download folder
+                            cleanup_output_part_files(job);
                         }
                     }),
                 }
@@ -1366,6 +1426,7 @@ pub fn start_download_impl(request: DownloadRequestInput) -> Result<DownloadJobR
                     job.response.error = Some("Download failed".to_string());
                     job.history.status = "failed".to_string();
                     write_history(job.history.clone());
+                    cleanup_output_part_files(job);
                 }
                 cleanup_temp_directory(&job.temp_directory);
                 job.process_id = None;
@@ -1375,6 +1436,7 @@ pub fn start_download_impl(request: DownloadRequestInput) -> Result<DownloadJobR
                 job.response.error = Some("Download process could not be monitored".to_string());
                 job.history.status = "failed".to_string();
                 write_history(job.history.clone());
+                cleanup_output_part_files(job);
                 cleanup_temp_directory(&job.temp_directory);
                 job.process_id = None;
             }),
@@ -1450,7 +1512,7 @@ fn transcode_to_3gp_file(source_path: &str, resolution: &str, job_id: &str) -> O
     let height = resolution_dimensions(resolution).1;
     let args = build_3gp_transcode_args(source_path, &output.to_string_lossy(), height);
     let ffmpeg_bin = resolve_ffmpeg().unwrap_or_else(|_| "ffmpeg".to_string());
-    let mut child = Command::new(ffmpeg_bin)
+    let mut child = cmd_hidden(ffmpeg_bin)
         .args(&args)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -1484,7 +1546,7 @@ pub fn cancel_download_impl(job_id: String) -> Result<DownloadJobResponse, Strin
         .and_then(|job| job.process_id);
 
     if let Some(process_id) = process_id {
-        let _ = Command::new("taskkill")
+        let _ = cmd_hidden("taskkill")
             .args(["/PID", &process_id.to_string(), "/T", "/F"])
             .status();
     }
@@ -1494,6 +1556,7 @@ pub fn cancel_download_impl(job_id: String) -> Result<DownloadJobResponse, Strin
     if let Ok(jobs) = jobs().lock() {
         if let Some(job) = jobs.get(&job_id) {
             write_history(job.history.clone());
+            cleanup_output_part_files(job);
             cleanup_temp_directory(&job.temp_directory);
         }
     }
@@ -1679,6 +1742,8 @@ pub fn cleanup_broken_files_impl(output_directory: Option<String>) -> Result<Vec
 
         // Safety: 0-byte files always delete
         let mut should_delete = false;
+        let fname_for_check = path.file_name().and_then(|n| n.to_str()).unwrap_or("").to_string();
+        let is_part = partial_exts.contains(&ext.as_str()) || fname_for_check.contains(".part");
         if let Ok(meta) = fs::metadata(&path) {
             if meta.len() == 0 {
                 should_delete = true;
@@ -1687,18 +1752,15 @@ pub fn cleanup_broken_files_impl(output_directory: Option<String>) -> Result<Vec
                     if age.as_secs() >= 7 * 24 * 3600 {
                         should_delete = true;
                     }
+                    // Orphaned .part files (not from active job) older than 60s should be deleted even when has_active
+                    if !is_active_file && is_part && age.as_secs() >= 60 {
+                        should_delete = true;
+                    }
                 }
             }
-            // If no active jobs, all partial files are orphaned -> delete
-            if !has_active && partial_exts.contains(&ext.as_str()) {
+            // If no active jobs, all partial files are orphaned -> delete immediately
+            if !has_active && is_part {
                 should_delete = true;
-            }
-            // Also if filename contains .part and no active jobs, delete
-            if !has_active {
-                let fname = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
-                if fname.contains(".part") {
-                    should_delete = true;
-                }
             }
         }
 
@@ -2087,7 +2149,7 @@ mod tests {
     #[test]
     fn validates_real_media_with_ffprobe() {
         let media_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..\\..\\..\\artifacts\\sample-test.mp4");
-        if std::env::var_os("KWL_FFPROBE_PATH").is_some() || Command::new("ffprobe").arg("-version").output().is_ok() {
+        if std::env::var_os("KWL_FFPROBE_PATH").is_some() || super::cmd_hidden("ffprobe").arg("-version").output().is_ok() {
             assert!(validate_output_file(&media_path.to_string_lossy()).is_ok());
         }
     }

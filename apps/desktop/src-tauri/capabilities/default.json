@@ -23,6 +23,10 @@
     "store:allow-load",
     "store:allow-has",
     "store:allow-keys",
-    "store:allow-length"
+    "store:allow-length",
+    "updater:default",
+    "updater:allow-check",
+    "updater:allow-download-and-install",
+    "process:allow-restart"
   ]
 }

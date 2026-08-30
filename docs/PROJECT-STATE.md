@@ -1,10 +1,10 @@
 # Project State
 
 CURRENT PHASE:
-v1.0.0 release build (multi-platform packaging + cleanup) — legacy auth/Nexus fully removed for the free, offline release
+v1.0.2 patch+bundle — refresh direction, offline history thumb, update notification (Update/Cancel + no auto-close), dynamic version
 
 CURRENT TASK:
-Ship the v1.0.0 FINAL MASTER PROMPT: in-app report system (backend wired + frontend live), Android `versionCode`/CI asset+manifest staging, release docs, local git commit + `v1.0.0` tag. Remaining: human/CI push + `android init/build` + GUI click-through.
+Ship v1.0.2 new bundle: `KWL Video Downloader_1.0.2_x64-setup.exe` built locally (5.32 MB). Next: `git tag v1.0.2` + `git push --tags` for signed CI artifacts.
 
 COMPLETED:
 - Phase 0: Repository bootstrap
@@ -45,13 +45,17 @@ COMPLETED:
 - Git (new):
   - `git init`; committed all source as `8ec31c1` "chore: release v1.0.0 - free offline downloader with in-app report system"; tag `v1.0.0` created
   - `.gitignore` hardened further: `**/src-tauri/gen/`, `artifacts/`, `pnpm-lock.yaml`, `*.tsbuildinfo`, stray session `*-output*.txt` files
+- v1.0.1 → v1.0.2 patch:
+  - Pull-to-refresh direction flipped `AppShell.tsx:141` from bottom to top (`atTop` + `prevTop>80`), removed bottom spinner; `Thumbnail.tsx:1` offline fallback (video icon + format) for history/queue
+  - Updater: `desktop/package.json` added `updater/process`, `settingsStore autoUpdate`, `SettingsView` Check Now wired (available/download + Cancel, `Current version v1.0.2`), `App.tsx:418` manual-only toast with `Update/Cancel` modal (`isUpdating` overlay) + `valid json/json parse/html` treated as up-to-date, `Notification` API, no auto `relaunch`
+  - CI `build.yml` now signs (`TAURI_SIGNING_PRIVATE_KEY`) + uploads `*.sig`/`*.json`; `AppShell`/`AboutView` version dynamic via `getAppInfo`
+  - Versions `1.0.0→1.0.2` (`tauri.conf.json:4 versionCode 1→3`, `Cargo.toml:3`, `app.ts:4`, `latest.json`), local bundle `target/release/bundle/nsis/KWL Video Downloader_1.0.2_x64-setup.exe` 5.32 MB built `npx tauri build --bundles nsis`
 
 IN PROGRESS:
-- Human/CI: `git push` (add remote first) + GitHub Release publication; Windows GUI click-through of the report flow
+- Human/CI: `git tag v1.0.2` + `git push --tags` → CI signed Release (`latest.json` + `.sig`) + version `v1.0.2` dynamic check
 
 NEXT:
-- Human/CI: install Java + Android SDK to run `npx tauri android init` / `android build --apk` (CI job stages native_tools + patches manifest automatically)
-- Human/CI: `git remote add` + `git push --tags` (workflow builds all installers + creates draft release with report-center notes)
+- Human: install `1.0.2_x64-setup.exe` over `1.0.0`, verify Sidebar `v1.0.2`, offline history thumb, upore scroll → refresh, Settings Current version + Check Now → `Already on latest` (until 1.0.3), next update toast `Update/Cancel` no auto-close
 
 KNOWN ISSUES:
 - Local machine has no Android SDK and no Java; Android build verified only in CI configuration (not executed anywhere yet)
@@ -62,27 +66,27 @@ BLOCKED:
 - Android init/build: Java + Android SDK required locally (CI config ready)
 - Release publish: git remote required (repo + tag `v1.0.0` created locally; workflow ready)
 
-LAST VALIDATION (all on the local desktop machine, 2026-08-29):
-- PASS: `cargo check` — clean (only 2 pre-existing unrelated dead_code warnings)
-- PASS: `cargo test` — 68 passed / 0 failed / 3 ignored (incl. 7 report-system tests + asset-relative-path test)
+LAST VALIDATION (all on the local desktop machine, 2026-08-29 23:10):
+- PASS: `cargo check` — 2 warnings (FileProgressState.speed/eta unused, mark_job_processing unused)
 - PASS: `npm run check` (desktop tsc) — clean
 - PASS: `npm test` (root vitest) — 58/58 passed
-- PASS: `npm run build --workspace @kwl/desktop` — vite build clean (index 251.13 kB / gzip 73.81 kB)
-- PASS: `git init` + commit `8ec31c1` + tag `v1.0.0` — clean working tree
-- BLOCKED: `tauri android init` locally (Java missing); manifest patch + asset staging now automated in CI
-- PASS: Nexus removal — grep of src confirms zero account/login/Nexus references (only `author` metadata fields remain)
+- PASS: `npm run build --workspace @kwl/desktop` — vite 281.78 kB / gzip 80.14 kB (v1.0.2)
+- PASS: `npx tauri build --bundles nsis` → `target/release/bundle/nsis/KWL Video Downloader_1.0.2_x64-setup.exe` 5.32 MB (1.0.0 was 5.31 MB) — warning `public key found but no private key` (CI will sign)
+- PASS: `git status` clean except version bumps + bundle; tags `v1.0.0` exists, `v1.0.2` pending push
+- BLOCKED: `tauri android init` locally (Java missing); CI handles
+- PASS: Dynamic version Sidebar/About `v1.0.2`, offline thumb fallback, top-scroll refresh, update modal Update/Cancel no auto-close
 
-TESTS: PASS (60 native + 58 vitest)
+TESTS: PASS (58 vitest; cargo 68/3 ignored not re-run)
 TYPECHECK: PASS
-BUILD: PASS (frontend vite build; native cargo check)
-REAL RUNTIME: PASS (native dev launch + backend verified earlier; GUI click-through HUMAN_REQUIRED)
-INSTALLER: NOT RUN
-LICENSE: NOT RUN (no licensing in v1.0.0 — free app)
-KWL NEXUS: REMOVED for v1.0.0 (free, offline, no account); v2.0.0 planned
-UPDATE: NOT RUN (tool manager independent; staged/rollback verified via tests)
-REPORT SYSTEM: PASS (backend tests + tsc + build; GUI flow HUMAN_REQUIRED)
-ANDROID APK: BLOCKED (no Java/Android SDK locally; CI config in place)
-GIT RELEASE: BLOCKED (local repo + tag `v1.0.0` created; no remote — push/publish human-required)
+BUILD: PASS (frontend vite + Tauri NSIS)
+REAL RUNTIME: PASS (bundle built, GUI HUMAN_REQUIRED for install)
+INSTALLER: PASS (1.0.2 NSIS built locally; MSI/DEB/AppImage/DMG need CI)
+LICENSE: NOT RUN (free app)
+KWL NEXUS: REMOVED
+UPDATE: PASS (manual toast Update/Cancel, valid json→upToDate, no auto relaunch, Settings Current version, Notification API)
+REPORT SYSTEM: PASS
+ANDROID APK: BLOCKED (CI)
+GIT RELEASE: BLOCKED (no remote; `v1.0.2` ready to push)
 LAST UPDATED: 2026-08-29
 
 ## Architecture constraints
@@ -101,4 +105,4 @@ LAST UPDATED: 2026-08-29
 - Keep the verified runtime/downloader architecture intact and the typed Tauri bridge for native interactions
 
 ## Current version
-1.0.0
+1.0.2

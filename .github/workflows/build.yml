@@ -55,6 +55,9 @@ jobs:
         run: npm ci
 
       - name: Build release bundles (NSIS + MSI)
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
           npm run build --workspace @kwl/desktop
           npx tauri build --bundles nsis msi
@@ -65,7 +68,10 @@ jobs:
           name: windows
           path: |
             apps/desktop/src-tauri/target/release/bundle/nsis/*.exe
+            apps/desktop/src-tauri/target/release/bundle/nsis/*.exe.sig
             apps/desktop/src-tauri/target/release/bundle/msi/*.msi
+            apps/desktop/src-tauri/target/release/bundle/msi/*.msi.sig
+            apps/desktop/src-tauri/target/release/bundle/**/*.json
 
   linux:
     name: Linux (.deb + .AppImage)
@@ -95,6 +101,9 @@ jobs:
         run: npm ci
 
       - name: Build release bundles (Deb + AppImage)
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
           npm run build --workspace @kwl/desktop
           npx tauri build --bundles deb appimage
@@ -106,6 +115,8 @@ jobs:
           path: |
             apps/desktop/src-tauri/target/release/bundle/deb/*.deb
             apps/desktop/src-tauri/target/release/bundle/appimage/*.AppImage
+            apps/desktop/src-tauri/target/release/bundle/**/*.sig
+            apps/desktop/src-tauri/target/release/bundle/**/*.json
 
   macos:
     name: macOS (.dmg)
@@ -130,6 +141,9 @@ jobs:
         run: npm ci
 
       - name: Build release bundles (.dmg)
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
           npm run build --workspace @kwl/desktop
           npx tauri build --bundles dmg
@@ -138,7 +152,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: macos
-          path: apps/desktop/src-tauri/target/release/bundle/dmg/*.dmg
+          path: |
+            apps/desktop/src-tauri/target/release/bundle/dmg/*.dmg
+            apps/desktop/src-tauri/target/release/bundle/**/*.sig
+            apps/desktop/src-tauri/target/release/bundle/**/*.json
 
   android:
     name: Android (.apk)
@@ -221,15 +238,25 @@ jobs:
           path: artifacts
           merge-multiple: true
 
+      - name: Show collected artifacts (old releases are NOT deleted — each tag v* creates its own release)
+        run: |
+          echo "Collected artifacts for ${{ github.ref_name }} — old version .exe files remain in their own releases (e.g. v1.0.0, v1.0.2):"
+          find artifacts -type f | sort
+          echo "--- Old releases are preserved. New .exe is versioned (KWL Video Downloader_<version>_x64-setup.exe), so it never overwrites old .exe ---"
+
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
+          # draft:true keeps release as draft for manual review; publish will mark it as `latest` but all previous tags (v1.0.0, v1.0.2 …) remain with their .exe
           draft: true
+          # make_latest:true (default) moves the `latest` pointer to this tag, but does NOT delete any previous release or its .exe
+          make_latest: true
+          fail_on_unmatched_files: false
           files: artifacts/**/*
           body: |
-            ## KWL Video Downloader v1.0.0
+            ## KWL Video Downloader ${{ github.ref_name }}
 
-            The first production release of **KWL Video Downloader** - completely free, offline, and cross-platform.
+            **KWL Video Downloader** — free, offline, and cross-platform. This release adds versioned installers; previous releases and their `.exe`/`.msi`/`.deb`/`.dmg`/`.apk` remain untouched on their own tags.
 
             ### What's included
             - Download video and audio with real-time progress
@@ -239,13 +266,16 @@ jobs:
             - Built-in runtime tool management (yt-dlp / FFmpeg / ffprobe)
             - In-app report center (report an error, suggestion, or feedback)
             - English and Bangla language support
+            - Completed downloads, history, and queue are local
 
-            ### Installers
-            - Windows: NSIS `.exe` + MSI `.msi`
+            ### Installers (this version — ${{ github.ref_name }})
+            - Windows: NSIS `.exe` + MSI `.msi` (e.g. `KWL Video Downloader_${{ github.ref_name }}_x64-setup.exe`)
             - Android: `.apk`
             - macOS: `.dmg`
             - Linux: `.deb` + `.AppImage`
+            - Updater artifacts: `latest.json` + `.sig` files (for silent auto-update)
 
             ### Notes
             - No account, login, license, or payment required
+            - Old versions’ `.exe` files are NOT deleted — each `v*` tag keeps its own assets; the new `.exe` is added alongside them
             - KWL Nexus (cloud account, plans, licensing) ships in a future release

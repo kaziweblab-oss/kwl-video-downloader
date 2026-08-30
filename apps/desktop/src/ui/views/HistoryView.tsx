@@ -1,8 +1,9 @@
-import { Panel, PanelHeader } from '../components/Panel';
+import { Panel } from '../components/Panel';
 import { Thumbnail } from '../components/Thumbnail';
 import { Icon } from '../components/Icon';
 import { IconButton } from '../components/IconButton';
 import { useTranslations } from '../hooks/useTranslations';
+import { useSettings } from '../store/settingsStore';
 import type { DownloadHistoryEntry } from '../../native/tauriBridge';
 
 export interface HistoryViewProps {
@@ -25,20 +26,22 @@ export const HistoryView = ({
   onRefresh,
 }: HistoryViewProps) => {
   const t = useTranslations();
+  const { resolvedTheme } = useSettings();
+  const isDark = resolvedTheme === 'dark';
 
   if (history.length === 0) {
     return (
       <Panel>
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-2.5">
-            <h3 className="m-0 text-lg font-bold tracking-tight">{t.recentDownloads}</h3>
-            <span className="inline-flex min-h-6 items-center rounded-full border border-sky-300/25 bg-cyan-700/20 px-[0.55rem] py-[0.18rem] text-[0.7rem] font-bold text-sky-200">0 {t.items}</span>
+            <h3 className={`m-0 text-lg font-bold tracking-tight ${isDark ? 'text-slate-50' : 'text-slate-900'}`}>{t.recentDownloads}</h3>
+            <span className={`inline-flex min-h-6 items-center rounded-full border px-[0.55rem] py-[0.18rem] text-[0.7rem] font-bold ${isDark ? 'border-sky-300/25 bg-cyan-700/20 text-sky-200' : 'border-sky-200 bg-sky-50 text-sky-700'}`}>0 {t.items}</span>
           </div>
           <button
             type="button"
             onClick={() => onClearAll?.()}
             disabled
-            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800/50 px-3 py-1.5 text-xs font-bold text-slate-500 cursor-not-allowed opacity-60"
+            className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold cursor-not-allowed opacity-60 ${isDark ? 'border-slate-700 bg-slate-800/50 text-slate-500' : 'border-slate-200 bg-slate-100 text-slate-400'}`}
             title="Clear history"
           >
             <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d="M4 7h16" /><path d="M9 7V5h6v2" /><path d="m6 7 1 13h10l1-13" /><path d="M10 11v6M14 11v6" /></svg>
@@ -48,7 +51,7 @@ export const HistoryView = ({
 
         <div className="mt-4 grid justify-items-center gap-2 px-3 pb-3 pt-5 text-center">
           <Icon name="empty" />
-          <p className="mt-3.5 text-[0.95rem] text-slate-400">{t.emptyHistory}</p>
+          <p className={`mt-3.5 text-[0.95rem] ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{t.emptyHistory}</p>
         </div>
       </Panel>
     );
@@ -58,13 +61,18 @@ export const HistoryView = ({
     <Panel>
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2.5">
-          <h3 className="m-0 text-lg font-bold tracking-tight">{t.recentDownloads}</h3>
-          <span className="inline-flex min-h-6 items-center rounded-full border border-sky-300/25 bg-cyan-700/20 px-[0.55rem] py-[0.18rem] text-[0.7rem] font-bold text-sky-200">{history.length} {t.items}</span>
+          <h3 className={`m-0 text-lg font-bold tracking-tight ${isDark ? 'text-slate-50' : 'text-slate-900'}`}>{t.recentDownloads}</h3>
+          <span className={`inline-flex min-h-6 items-center rounded-full border px-[0.55rem] py-[0.18rem] text-[0.7rem] font-bold ${isDark ? 'border-sky-300/25 bg-cyan-700/20 text-sky-200' : 'border-sky-200 bg-sky-50 text-sky-700'}`}>{history.length} {t.items}</span>
+          {onRefresh && (
+            <button type="button" onClick={() => onRefresh?.()} className={`ml-1 inline-flex h-7 w-7 items-center justify-center rounded-full border transition ${isDark ? 'border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`} title="Refresh">
+              <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M20 11a8 8 0 0 0-14.5-3L3 11"/><path d="M3 6v5h5"/><path d="M4 13a8 8 0 0 0 14.5 3L21 13"/><path d="M21 18v-5h-5"/></svg>
+            </button>
+          )}
         </div>
         <button
           type="button"
           onClick={() => onClearAll?.()}
-          className="inline-flex items-center gap-1.5 rounded-xl border border-red-400/25 bg-slate-900/70 px-3 py-1.5 text-xs font-bold text-red-300 transition hover:border-red-400/70 hover:bg-red-500/20 hover:text-red-100"
+          className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition ${isDark ? 'border-red-400/25 bg-slate-900/70 text-red-300 hover:border-red-400/70 hover:bg-red-500/20 hover:text-red-100' : 'border-red-200 bg-red-50 text-red-600 hover:bg-red-100 hover:border-red-300'}`}
           title="Clear history — Remove all"
         >
           <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d="M4 7h16" /><path d="M9 7V5h6v2" /><path d="m6 7 1 13h10l1-13" /><path d="M10 11v6M14 11v6" /></svg>
@@ -76,14 +84,14 @@ export const HistoryView = ({
         {history.map((entry) => (
           <li
             key={`${entry.timestamp}-${entry.output_path ?? entry.filename ?? entry.format}`}
-            className="grid grid-cols-[64px_minmax(0,1fr)_auto] gap-3 rounded-2xl border border-blue-400/20 bg-slate-900/70 p-3 shadow-[0_10px_24px_rgba(2,6,23,0.16)] max-[520px]:grid-cols-[60px_minmax(0,1fr)_auto]"
+            className={`grid grid-cols-[64px_minmax(0,1fr)_auto] items-center gap-3 rounded-2xl border p-3 shadow-sm max-[520px]:grid-cols-[60px_minmax(0,1fr)_auto] ${isDark ? 'border-blue-400/20 bg-slate-900/70 shadow-[0_10px_24px_rgba(2,6,23,0.16)]' : 'border-slate-200 bg-white shadow-[0_4px_12px_rgba(0,0,0,0.06)]'}`}
           >
-            <Thumbnail src={entry.thumbnail ?? undefined} alt={entry.filename ?? entry.format} size="md" fallback={<span>{entry.format}</span>} />
+            <Thumbnail src={entry.thumbnail ?? undefined} alt={entry.filename ?? entry.format} size="md" className="self-center" fallback={<span>{entry.format}</span>} />
 
             <div className="grid min-w-0 gap-1">
-              <strong className="overflow-hidden text-ellipsis whitespace-nowrap text-slate-50 text-sm">{entry.filename ?? entry.format}</strong>
-              <span className="text-[0.78rem] text-slate-400">{entry.media_type} · {entry.format} {entry.resolution ? `· ${entry.resolution}` : ''} · {entry.status}</span>
-              <span className="text-[0.7rem] text-slate-500 truncate">{entry.output_path ?? ''}</span>
+              <strong className={`overflow-hidden text-ellipsis whitespace-nowrap text-sm ${isDark ? 'text-slate-50' : 'text-slate-900'}`}>{entry.filename ?? entry.format}</strong>
+              <span className={`text-[0.78rem] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{entry.media_type} · {entry.format} {entry.resolution ? `· ${entry.resolution}` : ''} · {entry.status}</span>
+              <span className={`text-[0.7rem] truncate ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>{entry.output_path ?? ''}</span>
             </div>
 
             <div className="flex items-center gap-1.5 self-center">

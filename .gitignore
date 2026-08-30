@@ -20,3 +20,8 @@ pnpm-lock.yaml
 /vitest-output.txt
 /vitest-output2.txt
 /vitest-output3.txt
+
+# Tauri signing keys (never commit)
+signing.key
+signing.key.pub
+*.key.pub

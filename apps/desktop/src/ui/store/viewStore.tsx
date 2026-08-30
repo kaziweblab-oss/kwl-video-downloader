@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, ReactNode, Dispatch, SetStateAction } from 'react';
 
-export type View = 'downloader' | 'queue' | 'history' | 'settings' | 'about';
+export type View = 'downloader' | 'queue' | 'history' | 'settings' | 'about' | 'versions';
 
 export interface ViewContextValue {
   view: View;

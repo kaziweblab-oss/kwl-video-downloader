@@ -1,17 +1,22 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { EntitlementService } from '@kwl/shared';
 import { getAppShellState } from '../app';
-import { analyzeUrl, analyzePlaylist, cancelDownload, clearDownloadHistory, deleteDownloadHistory, deleteHistoryByUrl, getAppInfo, getDownloadHistory, getDownloadJob, openMediaFile, pauseDownload, resumeDownload, revealMediaInExplorer, startDownload, startupToolCheck, validateUrl, type DownloadHistoryEntry, type DownloadJobStatus } from '../native/tauriBridge';
+import { analyzeUrl, analyzePlaylist, cancelDownload, clearDownloadHistory, cleanupBrokenFiles, deleteDownloadHistory, deleteHistoryByUrl, getAppInfo, getDownloadHistory, getDownloadJob, openMediaFile, pauseDownload, resumeDownload, revealMediaInExplorer, startDownload, startupToolCheck, validateUrl, type DownloadHistoryEntry, type DownloadJobStatus } from '../native/tauriBridge';
 import { canAddToQueue, describeExistingDownload, findExistingDownload, formatOptionsFor, getSelectedFormatSize, getStepsForMedia, isAnalyzableUrl, nextWizardStep, parseDimension, prevWizardStep, qualityOptionsFor, qualityTiersWithDimensions, type FlowAnalysis, type FlowResolution, type WizardStepId } from './downloadFlow';
-import { TranslationProvider, useLanguage } from './hooks/useTranslations';
+import { useLanguage } from './hooks/useTranslations';
 import { DownloaderView, type DownloaderViewProps } from './components/DownloaderView';
 import { QueueView } from './views/QueueView';
 import { HistoryView } from './views/HistoryView';
 import { SettingsView } from './views/SettingsView';
 import { AboutView } from './views/AboutView';
+import { AdminVersionsView } from './versioning/AdminVersionsView';
+import { VersionHistory } from './versioning/components/VersionHistory';
+import { getVersions } from './versioning/tauriVersionsBridge';
 import { useView, type View } from './store/viewStore';
-import { SettingsProvider, useSettings } from './store/settingsStore';
+import { useSettings } from './store/settingsStore';
 import { Toast } from './components/Toast';
+import { check } from '@tauri-apps/plugin-updater';
+import { relaunch } from '@tauri-apps/plugin-process';
 
 type MediaType = 'Video' | 'Audio';
 type Language = 'en' | 'bn';
@@ -123,32 +128,40 @@ function applyJobToCartItem(item: CartItem, job: DownloadJobStatus): CartItem {
 }
 
 function getFriendlyErrorMessage(error: unknown, fallback: string): string {
-  if (error instanceof Error) {
-    const message = error.message.toLowerCase();
+  const raw = error instanceof Error ? error.message : typeof error === 'string' ? error : '';
+  const lower = raw.toLowerCase();
 
-    if (message.includes('invoke') || message.includes('tauri') || message.includes('undefined')) {
-      return 'The downloader is unavailable in this environment. Please try again or reopen the app.';
-    }
-
-    if (message.includes('invalid url') || message.includes('only http') || message.includes('url is required')) {
-      return 'Please use a valid http or https link.';
-    }
-
-    if (message.includes('download failed') || message.includes('unable to')) {
-      return 'The analysis could not complete. Please check the link and try again.';
-    }
-
-    return error.message;
+  // Network / offline — highest priority
+  if (lower.includes('network') || lower.includes('offline') || lower.includes('failed to fetch') || lower.includes('fetch failed') || lower.includes('internet') || lower.includes('econn') || lower.includes('timed out') || lower.includes('timeout') || lower.includes('dns') || lower.includes('enotfound') || lower.includes('err_internet_disconnected')) {
+    if (lower.includes('timeout') || lower.includes('timed out')) return 'Request timed out — please check your internet connection and try again.';
+    return 'No internet connection. Please check your network and try again.';
+  }
+  if (lower.includes('invoke') || lower.includes('tauri') || lower.includes('undefined')) {
+    return 'The downloader is unavailable in this environment. Please try again or reopen the app.';
+  }
+  if (lower.includes('invalid url') || lower.includes('only http') || lower.includes('url is required')) {
+    return 'Please enter a valid http or https link.';
+  }
+  if (lower.includes('unsupported url') || lower.includes('unsupported') || lower.includes('private') || lower.includes('unavailable') || lower.includes('no video') || lower.includes('video unavailable') || lower.includes('not available') || lower.includes('unable to retrieve') || lower.includes('unable to retrieve media details') || lower.includes('unable to retrieve playlist details')) {
+    return 'This link is private, unsupported, or unavailable. Please try a public video link.';
+  }
+  if (lower.includes('invalid output directory') || lower.includes('unable to create output folder') || lower.includes('unable to create temporary download workspace')) {
+    return 'Invalid output folder. Please pick a valid folder (e.g., Downloads/KWL Video Downloader) via Browse and try again.';
+  }
+  if (lower.includes('media file was not found') || lower.includes('media file is outside') || lower.includes('media file path is required') || lower.includes('downloaded output file was not found') || lower.includes('downloaded media failed validation') || lower.includes('downloaded media has no valid')) {
+    return 'Media file not found, outside allowed folders, or failed validation. Please check the path and try again.';
+  }
+  if (lower.includes('resolution is required') || lower.includes('quality is required') || lower.includes('format is required') || lower.includes('fps must be greater')) {
+    return 'Please complete the required selections (Type, Format, Quality/Dimension) before adding to queue.';
+  }
+  if (lower.includes('yt-dlp') || lower.includes('runtime is not available') || lower.includes('ffprobe runtime is not available') || lower.includes('ffmpeg runtime is not available')) {
+    return 'Downloader engine not ready. Please restart the app and try again.';
+  }
+  if (lower.includes('download failed') || lower.includes('unable to')) {
+    return 'The analysis could not complete. Please check the link and try again.';
   }
 
-  if (typeof error === 'string' && error.trim()) {
-    const message = error.toLowerCase();
-    if (message.includes('invoke') || message.includes('tauri')) {
-      return 'The downloader is unavailable in this environment. Please try again or reopen the app.';
-    }
-    return error;
-  }
-
+  if (raw && raw.trim()) return raw.trim();
   return fallback;
 }
 
@@ -174,9 +187,13 @@ function AppContent() {
   const [qualityChosen, setQualityChosen] = useState(false);
   const [selectedDimension, setSelectedDimension] = useState<FlowResolution | null>(null);
   const [outputDirectory, setOutputDirectory] = useState('C:\\Users\\Downloads\\KWL Video Downloader');
+  const [defaultOutputFolder, setDefaultOutputFolder] = useState('C:\\Users\\Downloads\\KWL Video Downloader');
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error'; duration?: number } | null>(null);
   const [wizardStep, setWizardStep] = useState<WizardStepId>('media');
   const [goToQueueDismissed, setGoToQueueDismissed] = useState(false);
+  const [lastAnalyzeResult, setLastAnalyzeResult] = useState<null | { kind: 'single' | 'playlist'; count: number; label: string }>(null);
+  const [updateAvailable, setUpdateAvailable] = useState<{ version: string; update: Awaited<ReturnType<typeof check>> } | null>(null);
+  const [isUpdating, setIsUpdating] = useState(false);
 
   const isPlaylistUrl = (value: string) => {
     const lower = value.toLowerCase();
@@ -186,6 +203,8 @@ function AppContent() {
   const cartSequenceRef = useRef(0);
   const startingItemsRef = useRef<Set<string>>(new Set());
   const toastedJobsRef = useRef<Set<string>>(new Set());
+  const cartRef = useRef<CartItem[]>([]);
+  useEffect(() => { cartRef.current = cart; }, [cart]);
   const [isQueuePaused, setIsQueuePaused] = useState(false);
 
   const showToast = (message: string, type: 'success' | 'error' = 'success', duration?: number) => {
@@ -396,6 +415,20 @@ function AppContent() {
     void getDownloadHistory().then(setHistory).catch(() => setHistory([]));
   }, []);
 
+  // Cleanup orphaned PART files left from previous failed/cancelled downloads (fixes Today duplicate PARTs)
+  useEffect(() => {
+    void cleanupBrokenFiles(outputDirectory || undefined).catch(() => {});
+    const id = window.setInterval(() => {
+      void cleanupBrokenFiles(outputDirectory || undefined).catch(() => {});
+    }, 60_000);
+    const onFocus = () => { void cleanupBrokenFiles(outputDirectory || undefined).catch(() => {}); };
+    window.addEventListener('focus', onFocus);
+    return () => {
+      window.clearInterval(id);
+      window.removeEventListener('focus', onFocus);
+    };
+  }, [outputDirectory]);
+
   // Lightweight startup tool check (non-blocking, offline-safe) — B3/B4/B10
   useEffect(() => {
     void startupToolCheck()
@@ -411,6 +444,56 @@ function AppContent() {
       });
   }, []);
 
+  // Auto-update check on app start — MANUAL ONLY: notify with Update/Cancel buttons, no auto-download or auto-close
+  // Offline-safe: do not fetch when no internet — app must open offline without ERR_INTERNET_DISCONNECTED
+  useEffect(() => {
+    const checkUpdate = async () => {
+      try {
+        if (typeof navigator !== 'undefined' && !navigator.onLine) {
+          console.debug('Offline — skip update check');
+          return;
+        }
+        if (!('__TAURI_INTERNALS__' in globalThis)) return;
+        if (!settings.autoUpdate) return;
+        const update = await check();
+        if (update) {
+          const v = (update as any).version ?? 'newer';
+          window.dispatchEvent(new CustomEvent('kwl:update-available', { detail: { version: v } }));
+          try { localStorage.setItem('kwl:update-available', JSON.stringify({ version: v, at: Date.now() })); } catch {}
+          // Show persistent notification with Update/Cancel — never auto-close window
+          setUpdateAvailable({ version: v, update });
+          try {
+            if ('Notification' in window) {
+              if (Notification.permission === 'granted') {
+                new Notification('KWL Video Downloader', { body: language === 'bn' ? `v${v} আপডেট এসেছে` : `v${v} available — open Settings → Updates` });
+              } else if (Notification.permission !== 'denied') {
+                void Notification.requestPermission().then((p) => { if (p === 'granted') new Notification('KWL Video Downloader', { body: `v${v} available` }); });
+              }
+            }
+          } catch {}
+        }
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        const lower = msg.toLowerCase();
+        // Valid json / parse / html means endpoint returned 404 HTML instead of json — treat as no update, not error
+        if (lower.includes('404') || lower.includes('not found') || lower.includes('failed to fetch') || lower.includes('network') || lower.includes('offline') || lower.includes('valid json') || lower.includes('json') && lower.includes('parse') || lower.includes('unexpected token') || lower.includes('html')) {
+          console.debug('Update check: no release / offline / invalid json (treat as up-to-date)', msg);
+        } else if (lower.includes('signature')) {
+          console.debug('Update signature verify failed (await release):', msg);
+        } else if (msg) {
+          console.debug('Update check failed:', msg);
+        }
+      }
+    };
+    const timer = setTimeout(checkUpdate, 3000);
+    // Universal periodic check every 4 hours for all platforms (Windows, Linux, macOS, Android)
+    const interval = setInterval(checkUpdate, 4 * 60 * 60 * 1000);
+    return () => {
+      clearTimeout(timer);
+      clearInterval(interval);
+    };
+  }, [settings.autoUpdate, language]);
+
   // Default to user's Downloads/KWL Video Downloader (not Public) — respects requested Download section
   useEffect(() => {
     let cancelled = false;
@@ -420,7 +503,11 @@ function AppContent() {
           const { downloadDir } = await import('@tauri-apps/api/path');
           const dir = await downloadDir(); // e.g. C:\Users\Khairul Islam\Downloads\
           const kwl = `${dir.replace(/[\\/]+$/, '')}\\KWL Video Downloader`;
-          if (!cancelled && kwl) setOutputDirectory(kwl);
+          if (!cancelled && kwl) {
+            setDefaultOutputFolder(kwl);
+            // Only set outputDirectory to default if still at fallback (not yet customized)
+            setOutputDirectory((prev) => (prev === 'C:\\Users\\Downloads\\KWL Video Downloader' ? kwl : prev));
+          }
         }
       } catch {
         // keep fallback
@@ -432,6 +519,19 @@ function AppContent() {
   const refreshHistory = () => {
     void getDownloadHistory().then(setHistory).catch(() => setHistory([]));
   };
+
+  // Pull-to-refresh / scroll-to-bottom refresh — triggered by AppShell (nicher dike scroll + pull-down)
+  useEffect(() => {
+    const handler = () => {
+      refreshHistory();
+      void getAppInfo().then((info) => setStatus(`${info.name} ${info.version}`)).catch(() => undefined);
+      showToast('Refreshed', 'success', 1200);
+      // notify shell that soft refresh completed so spinner can stop early
+      window.dispatchEvent(new CustomEvent('kwl:refresh-complete'));
+    };
+    window.addEventListener('kwl:refresh', handler as EventListener);
+    return () => window.removeEventListener('kwl:refresh', handler as EventListener);
+  }, []);
 
   const activeJobSignature = cart
     .filter((item) => item.jobId)
@@ -516,18 +616,33 @@ function AppContent() {
     }
 
     const isBulk = isPlaylistUrl(url.trim());
-    // Single mode duplicate check (bulk allows same playlist re-analyze)
+    // Single mode duplicate check (bulk allows same playlist re-analyze) — local, works offline
     if (!isBulk && analyses.some((entry) => entry.sourceUrl === url.trim())) {
       const existing = analyses.find((entry) => entry.sourceUrl === url.trim());
       if (existing) {
         setSelectedMediaIds((prev) => (prev.includes(existing.id) ? prev : [...prev, existing.id]));
         setActiveMediaId(existing.id);
+        setLastAnalyzeResult({ kind: 'single', count: 1, label: existing.title });
       }
       setStatus('Already analyzed — showing saved media');
+      showToast(language === 'bn' ? 'ইতিমধ্যে বিশ্লেষণ করা — সংরক্ষিত মিডিয়া দেখানো হচ্ছে' : 'Already analyzed — showing saved media', 'success');
+      return;
+    }
+
+    // Offline guard — network required for new analysis; DevTools Offline and Tauri offline both block here
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      const msg = language === 'bn'
+        ? 'ইন্টারনেট সংযোগ নেই। অনুগ্রহ করে নেটওয়ার্ক চেক করে আবার চেষ্টা করুন।'
+        : 'No internet connection. Please check your network and try again.';
+      setError(msg);
+      setStatus('Offline');
+      showToast(msg, 'error');
       return;
     }
 
     setIsLoading(true);
+    setError(null);
+    setLastAnalyzeResult(null);
     setStatus(isBulk ? 'Analyzing playlist…' : 'Analyzing…');
 
     try {
@@ -550,39 +665,27 @@ function AppContent() {
           }
         });
         const newIds = nextAnalyses.map((n) => n.id);
-        // Count duplicates (common videos) for accurate feedback — previous logic (76 new of 100 etc.)
-        const existingUrls = new Set(analyses.map((e) => e.sourceUrl));
-        let newCount = 0;
-        let dupCount = 0;
+        // Playlist analyze always REPLACES previous list (single→playlist and playlist→playlist clear, per spec)
+        // Deduplicate within the new playlist itself only
+        const dedupedByUrl = new Map<string, typeof nextAnalyses[0]>();
         for (const n of nextAnalyses) {
-          if (existingUrls.has(n.sourceUrl)) dupCount++;
-          else { newCount++; existingUrls.add(n.sourceUrl); }
+          if (!dedupedByUrl.has(n.sourceUrl)) dedupedByUrl.set(n.sourceUrl, n);
         }
-        setAnalyses((previous) => {
-          let updated = [...previous];
-          for (const next of nextAnalyses) {
-            const idx = updated.findIndex((e) => e.sourceUrl === next.sourceUrl);
-            if (idx >= 0) {
-              updated[idx] = next;
-            } else {
-              updated.unshift(next);
-            }
-          }
-          return updated;
-        });
-        setSelectedMediaIds((prev) => {
-          const merged = [...prev];
-          for (const id of newIds) if (!merged.includes(id)) merged.push(id);
-          return merged;
-        });
-        if (newIds.length) setActiveMediaId(newIds[0]!);
-        if (dupCount > 0) {
-          const totalUnique = analyses.length + newCount;
-          setStatus(`Playlist ready — ${nextAnalyses.length} items (${newCount} new, ${dupCount} common skipped) — total ${totalUnique} unique`);
-          showToast(`Playlist: ${nextAnalyses.length} videos, ${newCount} new + ${dupCount} common skipped — total ${totalUnique} unique`, 'success');
+        const uniqueNext = Array.from(dedupedByUrl.values());
+        const finalIds = uniqueNext.map((n) => n.id);
+        setAnalyses(uniqueNext);
+        setSelectedMediaIds(finalIds);
+        if (finalIds.length) setActiveMediaId(finalIds[0]!);
+        else setActiveMediaId(null);
+        if (uniqueNext.length < nextAnalyses.length) {
+          const dup = nextAnalyses.length - uniqueNext.length;
+          setStatus(`Playlist ready — ${uniqueNext.length} videos (${dup} duplicates removed)`);
+          setLastAnalyzeResult({ kind: 'playlist', count: uniqueNext.length, label: `${dup} duplicates removed` });
+          showToast(`Playlist: ${uniqueNext.length} videos (${dup} duplicates removed)`, 'success');
         } else {
-          setStatus(`Playlist ready — ${nextAnalyses.length} items added`);
-          showToast(`Playlist analyzed: ${nextAnalyses.length} videos`, 'success');
+          setStatus(`Playlist ready — ${uniqueNext.length} videos`);
+          setLastAnalyzeResult({ kind: 'playlist', count: uniqueNext.length, label: '' });
+          showToast(`Playlist analyzed: ${uniqueNext.length} videos`, 'success');
         }
       } else {
         const rawAnalysis = await analyzeUrl(url);
@@ -599,11 +702,13 @@ function AppContent() {
         });
         setSelectedMediaIds((prev) => (prev.includes(nextAnalysis.id) ? prev : [...prev, nextAnalysis.id]));
         setActiveMediaId(nextAnalysis.id);
+        setLastAnalyzeResult({ kind: 'single', count: 1, label: nextAnalysis.title });
         setStatus(nextAnalysis.available ? 'Media ready — select it from the list to configure' : 'Metadata unavailable');
       }
     } catch (caughtError) {
       const msg = getFriendlyErrorMessage(caughtError, 'The link could not be analyzed. Please check it and try again.');
       setError(msg);
+      setLastAnalyzeResult(null);
       setStatus('Analysis failed');
       showToast(msg, 'error');
     } finally {
@@ -611,8 +716,30 @@ function AppContent() {
     }
   };
 
-  const handleBrowse = () => {
-    setOutputDirectory((previous) => previous || 'C:\\Users\\Downloads\\KWL Video Downloader');
+  const handleBrowse = async () => {
+    try {
+      if ('__TAURI_INTERNALS__' in globalThis) {
+        const { open } = await import('@tauri-apps/plugin-dialog');
+        const selected = await open({
+          directory: true,
+          multiple: false,
+          defaultPath: outputDirectory || undefined,
+          title: 'Select output folder',
+        }) as string | string[] | null;
+        const picked = Array.isArray(selected) ? selected[0] ?? null : selected;
+        if (picked && typeof picked === 'string') {
+          // Normalize: remove surrounding quotes, keep as OS path (single backslashes)
+          setOutputDirectory(picked.replace(/^\"+|\"+$/g, ''));
+          showToast('Output folder updated', 'success', 1500);
+        }
+      } else {
+        // Browser preview fallback
+        setOutputDirectory((previous) => previous || 'C:\\Users\\Downloads\\KWL Video Downloader');
+        showToast('File picker only available in desktop app', 'error');
+      }
+    } catch (caughtError) {
+      setError(getFriendlyErrorMessage(caughtError, 'Could not open folder picker.'));
+    }
   };
 
   const createCartItem = (
@@ -641,6 +768,14 @@ function AppContent() {
   };
 
   const startCartItemJob = async (item: CartItem) => {
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      const msg = language === 'bn'
+        ? 'ইন্টারনেট নেই — ডাউনলোড শুরু করতে নেটওয়ার্ক লাগবে।'
+        : 'Offline — download needs internet. Please connect and try again.';
+      setCart((previous) => previous.map((entry) => entry.id === item.id ? { ...entry, status: 'Failed' as CartItemStatus, error: msg } : entry));
+      showToast(msg, 'error');
+      return;
+    }
     try {
       const job = await startDownload({
         url: item.url,
@@ -681,11 +816,8 @@ function AppContent() {
 
   useEffect(() => {
     const maxConcurrent = settings.maxConcurrent ?? 2;
-    // Pause All must freeze queue synchronously — use explicit flag plus fallback for individual Paused
+    // Pause All freezes queue — individual Paused items do NOT block next queued downloads
     if (isQueuePaused) {
-      return;
-    }
-    if (cart.some((item) => item.status === 'Paused')) {
       return;
     }
     const runningCount = cart.filter((item) => RUNNING_CART_STATUSES.includes(item.status) || (item.jobId !== null && item.status === 'Queued')).length;
@@ -730,13 +862,19 @@ function AppContent() {
     setAnalyses([]);
     setSelectedMediaIds([]);
     setActiveMediaId(null);
+    setLastAnalyzeResult(null);
+    setError(null);
     resetDependentSelections('media');
     setWizardStep('media');
     showToast('Cleared all analyzed media', 'success');
   };
 
   const handleRemoveAnalysis = (analysisId: string) => {
-    setAnalyses((previous) => previous.filter((entry) => entry.id !== analysisId));
+    setAnalyses((previous) => {
+      const next = previous.filter((entry) => entry.id !== analysisId);
+      if (next.length === 0) { setLastAnalyzeResult(null); setError(null); }
+      return next;
+    });
     setSelectedMediaIds((previous) => previous.filter((id) => id !== analysisId));
     setActiveMediaId((previous) => (previous === analysisId ? null : previous));
     resetDependentSelections('media');
@@ -749,6 +887,8 @@ function AppContent() {
     setAnalyses((previous) => previous.filter((entry) => !selectedMediaIds.includes(entry.id)));
     setSelectedMediaIds([]);
     setActiveMediaId(null);
+    setLastAnalyzeResult(null);
+    setError(null);
     resetDependentSelections('media');
     setWizardStep('media');
     showToast(`Removed ${selectedMediaIds.length} selected item(s)`, 'success');
@@ -848,7 +988,10 @@ function AppContent() {
     }
 
     setCart((previous) => [...previous, ...addedItems]);
-    const successMsg = duplicateNotice ? `Added ${addedItems.length} item(s) — ${duplicateNotice}` : `Added ${addedItems.length} video(s) to queue`;
+    const mediaLabel = mediaType === 'Audio' ? (language === 'bn' ? 'অডিও' : 'audio') : (language === 'bn' ? 'ভিডিও' : 'video');
+    const countLabel = addedItems.length === 1 ? `${addedItems.length} ${mediaLabel}` : `${addedItems.length} ${mediaLabel}(s)`;
+    const baseLabel = language === 'bn' ? `${countLabel} কিউতে যোগ করা হয়েছে` : `Added ${countLabel} to queue`;
+    const successMsg = duplicateNotice ? (language === 'bn' ? `${countLabel} যোগ — ${duplicateNotice}` : `Added ${addedItems.length} item(s) — ${duplicateNotice}`) : baseLabel;
     setStatus(duplicateNotice ? `Queued — ${duplicateNotice}` : 'Queued');
     showToast(successMsg, 'success', duplicateNotice ? 3000 : 1500);
     // Clear link input and analyzed media section after successful Add to Queue as requested
@@ -856,6 +999,8 @@ function AppContent() {
     setAnalyses([]);
     setSelectedMediaIds([]);
     setActiveMediaId(null);
+    setLastAnalyzeResult(null);
+    setError(null);
     resetDependentSelections('media');
     setWizardStep('media');
     setGoToQueueDismissed(false);
@@ -1059,10 +1204,11 @@ function AppContent() {
     onUrlChange: setUrl,
     onPaste: () => navigator.clipboard?.readText?.().then((text) => setUrl(text || url)).catch(() => undefined),
     onAnalyze: handleAnalyze,
-    onClear: () => setUrl(''),
+    onClear: () => { setUrl(''); setError(null); setLastAnalyzeResult(null); },
     isLoading,
     status,
     error,
+    lastAnalyzeResult,
     analyses,
     selectedMediaIds,
     activeMediaId,
@@ -1131,27 +1277,87 @@ function AppContent() {
         />
       );
     }
-    if (view === 'settings') return <SettingsView />;
-    if (view === 'about') return <AboutView />;
+    if (view === 'versions') {
+      return <AdminVersionsView appId="kwl-video-downloader" />;
+    }
+    if (view === 'settings') return <SettingsView outputDirectory={outputDirectory} defaultOutputFolder={defaultOutputFolder} onOutputDirectoryChange={setOutputDirectory} onBrowse={handleBrowse} />;
+    if (view === 'about') return <AboutViewWithVersions />;
     return <DownloaderView {...downloaderProps} />;
   })();
+
+  const handleUpdateNow = async () => {
+    if (!updateAvailable?.update) return;
+    const hasActive = cartRef.current.some((it) => ACTIVE_CART_STATUSES.includes(it.status) || RUNNING_CART_STATUSES.includes(it.status));
+    if (hasActive) {
+      showToast(language === 'bn' ? 'ডাউনলোড চলছে — শেষ হলে আপডেট করুন।' : 'Downloads active — finish them before updating.', 'error', 3500);
+      return;
+    }
+    setIsUpdating(true);
+    try {
+      showToast(language === 'bn' ? 'আপডেট ডাউনলোড হচ্ছে...' : 'Downloading update...', 'success', 2000);
+      await updateAvailable.update.downloadAndInstall((ev) => {
+        if (ev.event === 'Started') showToast(language === 'bn' ? 'ডাউনলোড শুরু...' : 'Download started...', 'success', 1500);
+      });
+      showToast(language === 'bn' ? 'ইনস্টল হয়েছে — রিস্টার্ট হচ্ছে...' : 'Update installed — restarting...', 'success', 1500);
+      setTimeout(() => relaunch(), 800);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      showToast(language === 'bn' ? `আপডেট ব্যর্থ: ${msg.slice(0, 100)}` : `Update failed: ${msg.slice(0, 120)}`, 'error', 4000);
+      setIsUpdating(false);
+    }
+  };
+  const handleCancelUpdate = () => {
+    setUpdateAvailable(null);
+    try { localStorage.removeItem('kwl:update-available'); } catch {}
+  };
 
   return (
     <>
       {mainContent}
-      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} duration={toast.duration ?? 1100} />}
+      {updateAvailable && !isUpdating && (
+        <div className="fixed inset-0 z-[998] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-[6px]" onClick={handleCancelUpdate} aria-hidden="true" />
+          <div role="alert" aria-live="assertive" className="relative w-full max-w-[440px] rounded-2xl border border-sky-400/30 bg-slate-900/95 p-5 shadow-[0_20px_60px_rgba(0,0,0,0.5)] backdrop-blur-xl animate-[toastIn_0.22s_ease-out]">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-500/15 text-sky-300 border border-sky-400/20">
+                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M12 16v-5" /><path d="M12 8h.01" /><circle cx="12" cy="12" r="10" /></svg>
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[1rem] font-bold text-sky-100">{language === 'bn' ? `নতুন আপডেট v${updateAvailable.version} এসেছে` : `Update v${updateAvailable.version} available`}</p>
+                <p className="mt-1 text-[0.88rem] leading-5 text-slate-300">{language === 'bn' ? 'আপডেট করবেন? Settings → Updates থেকেও করতে পারবেন।' : 'Install now? You can also update from Settings → Updates.'}</p>
+                <div className="mt-4 flex gap-2">
+                  <button type="button" onClick={handleUpdateNow} className="rounded-xl bg-[linear-gradient(135deg,#38bdf8_0%,#2563eb_100%)] px-4 py-2 text-sm font-bold text-white shadow hover:-translate-y-px transition"> {language === 'bn' ? 'Update' : 'Update'} </button>
+                  <button type="button" onClick={handleCancelUpdate} className="rounded-xl border border-slate-600 bg-slate-800 px-4 py-2 text-sm font-bold text-slate-200 hover:bg-slate-700 transition"> {language === 'bn' ? 'Cancel' : 'Cancel'} </button>
+                </div>
+              </div>
+              <button type="button" onClick={handleCancelUpdate} className="shrink-0 rounded-lg p-1 text-slate-400 hover:bg-slate-800 hover:text-slate-200 transition" aria-label="Close"><svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round"><path d="M18 6L6 18" /><path d="M6 6l12 12" /></svg></button>
+            </div>
+          </div>
+          <style>{`@keyframes toastIn { from { opacity: 0; transform: translateY(10px) scale(0.96); } to { opacity: 1; transform: translateY(0) scale(1); } }`}</style>
+        </div>
+      )}
+      {isUpdating && (
+        <div className="fixed inset-0 z-[998] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-[6px]" aria-hidden="true" />
+          <div className="relative w-full max-w-[400px] rounded-2xl border border-sky-400/30 bg-slate-900/95 p-6 shadow-xl text-center">
+            <svg className="h-8 w-8 animate-spin text-sky-400 mx-auto" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.25"/><path d="M12 2 a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/></svg>
+            <p className="mt-3 text-sm font-bold text-sky-100">{language === 'bn' ? 'আপডেট ডাউনলোড হচ্ছে...' : 'Downloading update...'}</p>
+            <p className="mt-1 text-xs text-slate-400">{language === 'bn' ? 'উইন্ডো বন্ধ করবেন না' : 'Do not close the window'}</p>
+          </div>
+        </div>
+      )}
+      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} duration={toast.duration ?? 1500} />}
     </>
   );
 }
 
+function AboutViewWithVersions() {
+  // Closed source — VersionHistory hidden, AboutView handles privacy
+  return <AboutView />;
+}
+
 export function App() {
-  return (
-    <SettingsProvider>
-      <TranslationProvider>
-        <AppContent />
-      </TranslationProvider>
-    </SettingsProvider>
-  );
+  return <AppContent />;
 }
 
 function parseAnalysisResponse(raw: string | null | undefined, sourceUrl: string): FlowAnalysis {

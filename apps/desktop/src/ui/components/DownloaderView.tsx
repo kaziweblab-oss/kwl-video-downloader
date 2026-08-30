@@ -13,6 +13,7 @@ export interface DownloaderViewProps {
   isLoading: boolean;
   status: string;
   error: string | null;
+  lastAnalyzeResult?: null | { kind: 'single' | 'playlist'; count: number; label: string };
   analyses: AnalysisState[];
   selectedMediaIds: string[];
   activeMediaId: string | null;
@@ -58,6 +59,7 @@ export const DownloaderView = ({
   isLoading,
   status,
   error,
+  lastAnalyzeResult,
   analyses,
   selectedMediaIds,
   activeMediaId,
@@ -109,6 +111,7 @@ export const DownloaderView = ({
         analyzeEnabled={analyzeEnabled}
         status={status}
         error={error}
+        lastAnalyzeResult={lastAnalyzeResult ?? null}
       />
 
       <section className="mt-5">
@@ -123,6 +126,10 @@ export const DownloaderView = ({
           onUnmarkAll={onUnmarkAll}
           onClearAll={onClearAll}
           activeMediaCount={activeMediaCount}
+          isLoading={isLoading}
+          error={error}
+          onRetry={onAnalyze}
+          lastAnalyzeResult={lastAnalyzeResult ?? null}
         />
       </section>
 
