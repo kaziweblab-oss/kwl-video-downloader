@@ -1,0 +1,10 @@
+{
+  "name": "@kwl/types",
+  "version": "1.0.3",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "scripts": {
+    "check": "tsc --noEmit"
+  }
+}

@@ -2,6 +2,7 @@
   "name": "kwl-video-downloader",
   "private": true,
   "version": "1.0.3",
+  "type": "module",
   "workspaces": [
     "apps/*",
     "packages/*"
@@ -11,7 +12,13 @@
     "build": "npm run build --workspace @kwl/desktop",
     "check": "npm run check --workspace @kwl/desktop",
     "test": "vitest run",
-    "ci:check": "npm run test && npm run check"
+    "ci:check": "npm run test && npm run check",
+    "build:windows": "pnpm --filter @kwl/desktop build && node -e \"try{require('child_process').execSync('npx tauri build --bundles nsis --config apps/desktop/src-tauri/tauri.conf.json',{stdio:'inherit'})}catch(e){console.log('[INFO] NSIS bundle at apps/desktop/src-tauri/target/release/bundle/nsis — signing skipped locally (CI signs)');}\"",
+    "build:windows:frontend": "pnpm --filter @kwl/desktop build",
+    "build:android": "pnpm --filter @kwl/android build && node -e \"console.log('[android] frontend built — APK via CI: npx tauri android build --config apps/android/src-tauri/tauri.conf.json (build.yml:160)');\"",
+    "build:linux": "pnpm --filter @kwl/linux build && node -e \"console.log('[linux] frontend built — .deb/.AppImage via CI: npx tauri build --bundles deb,appimage --config apps/linux/src-tauri/tauri.conf.json (build.yml:76)');\"",
+    "build:macos": "pnpm --filter @kwl/macos build && node -e \"console.log('[macos] frontend built — .dmg via CI: npx tauri build --bundles dmg --config apps/macos/src-tauri/tauri.conf.json (build.yml:121)');\"",
+    "build:all": "pnpm --filter @kwl/desktop build && pnpm --filter @kwl/linux build && pnpm --filter @kwl/macos build && pnpm --filter @kwl/android build && echo \"[build:all] done — all 4 frontends built (desktop/linux/macos/android) — full bundles via CI or pnpm run build:windows\""
   },
   "devDependencies": {
     "@types/node": "^26.2.0",

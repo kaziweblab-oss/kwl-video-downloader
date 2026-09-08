@@ -1,0 +1,81 @@
+{
+  "$schema": "https://schema.tauri.app/config/2.0.0/schema.json",
+  "productName": "KWL Video Downloader",
+  "version": "1.0.3",
+  "identifier": "com.kwl.videodownloader",
+  "build": {
+    "beforeDevCommand": "npm run dev --workspace @kwl/android",
+    "beforeBuildCommand": "npm run build --workspace @kwl/android",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "KWL Video Downloader",
+        "width": 1200,
+        "height": 800,
+        "minWidth": 380,
+        "minHeight": 520,
+        "resizable": true,
+        "decorations": false,
+        "transparent": false
+      }
+    ],
+    "security": {
+      "csp": null,
+      "assetProtocol": {
+        "enable": true,
+        "scope": ["**"]
+      }
+    }
+  },
+  "bundle": {
+    "active": true,
+    "createUpdaterArtifacts": true,
+    "publisher": "KWL (Kazi Web Lab)",
+    "category": "Utility",
+    "shortDescription": "Professional video/audio downloader",
+    "longDescription": "KWL Video Downloader - Download videos and audio from thousands of sites. Free, fast, and professional.",
+    "icon": ["icons/icon.ico", "icons/icon.png"],
+    "windows": {
+      "nsis": {
+        "template": "nsis-template.nsi",
+        "installMode": "currentUser",
+        "displayLanguageSelector": false,
+        "languages": ["English"],
+        "installerIcon": "icons/icon.ico",
+        "headerImage": "icons/nsis-header.bmp",
+        "sidebarImage": "icons/nsis-sidebar.bmp",
+        "uninstallerIcon": "icons/icon.ico",
+        "uninstallerHeaderImage": "icons/nsis-header.bmp"
+      },
+      "wix": {
+        "language": "en-US"
+      }
+    },
+    "macOS": {
+      "dmg": {
+        "windowSize": {
+          "width": 660,
+          "height": 400
+        }
+      }
+    },
+    "linux": {
+      "deb": {
+        "desktopTemplate": null
+      }
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDYxRDIyMDRBRTg3MDRCODAKUldTQVMzRG9TaURTWVFYQUhDancvVFBvZ1cra0V1aEdRYmhtQVZaTDQvVm1yWnpnd3lkTVdRQTgK",
+      "endpoints": [
+        "https://github.com/kwl/video-downloader/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
+  }
+}

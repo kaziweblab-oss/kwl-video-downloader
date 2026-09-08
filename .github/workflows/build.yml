@@ -196,6 +196,54 @@ jobs:
       - name: Init Android project
         run: npx tauri android init
 
+      - name: Patch APK output name to kwl-video-downloader-{version}.apk
+        run: |
+          python3 << 'PY'
+          import pathlib
+          for p in ["apps/desktop/src-tauri/gen/android/app/build.gradle.kts", "apps/android/src-tauri/gen/android/app/build.gradle.kts"]:
+              fp = pathlib.Path(p)
+              if not fp.exists():
+                  print(f"skip missing {p}")
+                  continue
+              text = fp.read_text(encoding="utf-8")
+              if "kwl-video-downloader" in text:
+                  print(f"already patched {p}")
+                  continue
+              old = "    buildFeatures {\n        buildConfig = true\n    }\n}"
+              new = """    buildFeatures {
+                  buildConfig = true
+              }
+
+              // Permanent APK name: kwl-video-downloader-{versionName}.apk (fallback 1.0.3)
+              applicationVariants.all {
+                  val variant = this
+                  outputs.all {
+                      val output = this as com.android.build.gradle.internal.api.BaseVariantOutputImpl
+                      val ver = variant.versionName.ifEmpty { "1.0.3" }
+                      output.outputFileName = "kwl-video-downloader-${ver}.apk"
+                  }
+              }
+          }"""
+              if old in text:
+                  text = text.replace(old, new)
+                  fp.write_text(text, encoding="utf-8")
+                  print(f"patched {p}")
+              else:
+                  print(f"marker not found in {p}")
+                  # fallback: append inside android block via simple insert before final } of android
+                  if "applicationVariants.all" not in text:
+                      # try to insert before the first closing } after buildFeatures
+                      import re
+                      m = re.search(r"(buildFeatures\s*\{\s*buildConfig\s*=\s*true\s*\})", text)
+                      if m:
+                          insert = m.group(1) + "\n\n    // Permanent APK name\n    applicationVariants.all {\n        val variant = this\n        outputs.all {\n            val output = this as com.android.build.gradle.internal.api.BaseVariantOutputImpl\n            val ver = variant.versionName.ifEmpty { \"1.0.3\" }\n            output.outputFileName = \"kwl-video-downloader-${ver}.apk\"\n        }\n    }"
+                          text = text.replace(m.group(1), insert, 1)
+                          fp.write_text(text, encoding="utf-8")
+                          print(f"fallback patched {p}")
+          PY
+          echo "Patched build.gradle.kts files:"
+          grep -n "kwl-video-downloader" apps/desktop/src-tauri/gen/android/app/build.gradle.kts apps/android/src-tauri/gen/android/app/build.gradle.kts 2>/dev/null || echo "no gen files yet (will be patched on local builds)"
+
       - name: Stage bundled native tools into the generated Android project
         run: |
           for tool in yt-dlp ffmpeg ffprobe; do
@@ -225,7 +273,11 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: android
-          path: apps/desktop/src-tauri/android/app/build/outputs/apk/**/*.apk
+          path: |
+            apps/desktop/src-tauri/gen/android/app/build/outputs/apk/**/*.apk
+            apps/desktop/src-tauri/android/app/build/outputs/apk/**/*.apk
+            apps/android/src-tauri/gen/android/app/build/outputs/apk/**/*.apk
+            apps/android/src-tauri/gen/android/app/build/outputs/apk/**/kwl-video-downloader-*.apk
 
   release:
     name: Publish GitHub Release

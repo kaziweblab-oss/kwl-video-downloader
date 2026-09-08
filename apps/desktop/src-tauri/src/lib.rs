@@ -32,7 +32,9 @@ pub mod versions;
 /// (Android host extracts `assets/native_tools/*` into the app data dir),
 /// points the in-app report system at the app data dir and retries any queued
 /// reports, then kicks off the background runtime tool health check.
-pub fn app_setup(app: &tauri::AppHandle) {
+use tauri::AppHandle;
+
+pub fn app_setup<R: tauri::Runtime>(app: &AppHandle<R>) {
     use tauri::Manager;
     let base = app.path().app_data_dir().ok();
     tools::set_bundled_tools_base(base.clone());
@@ -150,8 +152,6 @@ pub struct DownloadHistoryEntry {
 struct FileProgressState {
     downloaded: u64,
     total: Option<u64>,
-    speed: Option<f64>,
-    eta: Option<u64>,
 }
 
 #[derive(Clone, Debug)]
@@ -185,7 +185,7 @@ impl ProgressAggregator {
         // Update file entry: keep latest downloaded/total/speed/eta for that file
         self.files.insert(
             key,
-            FileProgressState { downloaded: downloaded_val, total, speed, eta },
+            FileProgressState { downloaded: downloaded_val, total },
         );
 
         // Aggregate across all files byte-weighted
@@ -468,7 +468,54 @@ fn create_temp_directory(job_id: &str) -> Result<PathBuf, String> {
 }
 
 fn cleanup_temp_directory(path: &PathBuf) {
-    let _ = fs::remove_dir_all(path);
+    // Retry: Windows file locks may keep temp files open briefly after child exit
+    for attempt in 0..3 {
+        match fs::remove_dir_all(path) {
+            Ok(_) => break,
+            Err(e) => {
+                let msg = e.to_string().to_ascii_lowercase();
+                let in_use = msg.contains("being used by another process")
+                    || msg.contains("access is denied")
+                    || e.kind() == std::io::ErrorKind::PermissionDenied;
+                if in_use && attempt < 2 {
+                    std::thread::sleep(std::time::Duration::from_millis(150 * (attempt as u64 + 1)));
+                    continue;
+                }
+                if in_use {
+                    eprintln!("[CLEANUP] Temp dir in use, will retry later: {} ({})", path.display(), e);
+                }
+                break;
+            }
+        }
+    }
+}
+
+fn remove_file_with_retry(path: &PathBuf) -> bool {
+    for attempt in 0..3 {
+        match fs::remove_file(path) {
+            Ok(_) => {
+                eprintln!("[CLEANUP] Deleted output .part: {}", path.display());
+                return true;
+            }
+            Err(e) => {
+                let msg = e.to_string().to_ascii_lowercase();
+                let in_use = msg.contains("being used by another process")
+                    || msg.contains("access is denied")
+                    || e.kind() == std::io::ErrorKind::PermissionDenied;
+                if in_use && attempt < 2 {
+                    std::thread::sleep(std::time::Duration::from_millis(150 * (attempt as u64 + 1)));
+                    continue;
+                }
+                if in_use {
+                    eprintln!("[CLEANUP] Skipped in-use file (will retry next cleanup): {} ({})", path.display(), e);
+                } else {
+                    eprintln!("[CLEANUP] Failed to delete {}: {}", path.display(), e);
+                }
+                return false;
+            }
+        }
+    }
+    false
 }
 
 fn cleanup_output_part_files(job: &JobState) {
@@ -496,8 +543,7 @@ fn cleanup_output_part_files(job: &JobState) {
     }
     for p in candidates {
         if p.is_file() {
-            let _ = fs::remove_file(&p);
-            eprintln!("[CLEANUP] Deleted output .part: {}", p.display());
+            remove_file_with_retry(&p);
         }
     }
 }
@@ -1292,12 +1338,7 @@ pub fn start_download_impl(request: DownloadRequestInput) -> Result<DownloadJobR
                 let (percent, downloaded, total, speed, eta) = parse_progress_line(&line);
                 update_job(&progress_job_id, |job| {
                     if line.contains("[Merger]") || line.contains("[ExtractAudio]") {
-                        job.response.status = "processing".to_string();
-                        if let Some(floor) = job.aggregator.apply_phase_floor("processing") {
-                            job.response.percent = Some(floor);
-                        }
-                        job.response.speed_bytes_per_second = None;
-                        job.response.eta_seconds = None;
+                        mark_job_processing(job);
                     } else if percent.is_some() || downloaded.is_some() {
                         let (p, dl, tot, sp, eta_v) = job.aggregator.ingest(downloaded, total, speed, eta, None);
                         job.response.percent = p;
@@ -1765,14 +1806,35 @@ pub fn cleanup_broken_files_impl(output_directory: Option<String>) -> Result<Vec
         }
 
         if should_delete {
-            match fs::remove_file(&path) {
-                Ok(_) => {
-                    eprintln!("[CLEANUP] Deleted broken file: {}", path.display());
-                    deleted.push(path.to_string_lossy().to_string());
+            // Graceful retry for Windows file-in-use: yt-dlp may still hold .part handle briefly
+            let mut success = false;
+            for attempt in 0..3 {
+                match fs::remove_file(&path) {
+                    Ok(_) => {
+                        eprintln!("[CLEANUP] Deleted broken file: {}", path.display());
+                        success = true;
+                        break;
+                    }
+                    Err(e) => {
+                        let msg = e.to_string().to_ascii_lowercase();
+                        let in_use = msg.contains("being used by another process")
+                            || msg.contains("access is denied")
+                            || e.kind() == std::io::ErrorKind::PermissionDenied;
+                        if in_use && attempt < 2 {
+                            std::thread::sleep(std::time::Duration::from_millis(150 * (attempt as u64 + 1)));
+                            continue;
+                        }
+                        if in_use {
+                            eprintln!("[CLEANUP] Skipped in-use file (will retry next cleanup): {} ({})", path.display(), e);
+                        } else {
+                            eprintln!("[CLEANUP] Failed to delete {}: {}", path.display(), e);
+                        }
+                        break;
+                    }
                 }
-                Err(e) => {
-                    eprintln!("[CLEANUP] Failed to delete {}: {}", path.display(), e);
-                }
+            }
+            if success {
+                deleted.push(path.to_string_lossy().to_string());
             }
         }
     }
@@ -2709,5 +2771,21 @@ mod tests {
             }
         }
     }
+}
+
+// Required for Tauri Android mobile build – provides JNI entry point.
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub fn run() {
+    tauri::Builder::<tauri::Wry>::default()
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_store::Builder::default().build())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
+        .setup(|app| {
+            app_setup(app.handle());
+            Ok(())
+        })
+        .run(tauri::generate_context!())
+        .expect("error while running tauri application");
 }
 

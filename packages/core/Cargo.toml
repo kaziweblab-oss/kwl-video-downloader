@@ -1,0 +1,8 @@
+[package]
+name = "kwl-core"
+version = "1.0.3"
+edition = "2021"
+
+[lib]
+name = "kwl_core"
+path = "src/lib.rs"
