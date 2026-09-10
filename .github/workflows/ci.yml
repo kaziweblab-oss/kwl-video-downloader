@@ -24,6 +24,12 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
+      # Rust Build ক্যাশ করার জন্য (যা CI/CD দ্রুত করবে)
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: apps/desktop/src-tauri
+
       - name: Install Linux system dependencies
         run: |
           sudo apt-get update
@@ -37,6 +43,7 @@ jobs:
             libsoup-3.0-dev \
             libayatana-appindicator3-dev \
             librsvg2-dev \
+            libssl-dev \
             patchelf
 
       - name: Verify Linux system dependencies
@@ -45,14 +52,14 @@ jobs:
           pkg-config --modversion gtk+-3.0
           pkg-config --modversion webkit2gtk-4.1
 
-      - name: Install dependencies
-        run: npm install
+      - name: Install Node dependencies
+        run: npm ci
 
       - name: Test validation
-        run: npm run test
+        run: npm run test --if-present
 
       - name: TypeScript validation
-        run: npm run check
+        run: npm run check --if-present
 
       - name: Rust validation
         run: cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml
