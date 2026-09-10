@@ -24,7 +24,6 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
-      # Rust Build ক্যাশ করার জন্য (যা CI/CD দ্রুত করবে)
       - name: Rust cache
         uses: swatinem/rust-cache@v2
         with:
@@ -32,11 +31,12 @@ jobs:
 
       - name: Install Linux system dependencies
         run: |
-          sudo apt-get update
+          sudo apt-get update -y
           sudo apt-get install -y \
             build-essential \
             pkg-config \
             libglib2.0-dev \
+            libgirepository1.0-dev \
             libgtk-3-dev \
             libwebkit2gtk-4.1-dev \
             libjavascriptcoregtk-4.1-dev \
