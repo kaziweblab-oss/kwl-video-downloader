@@ -94,8 +94,20 @@ jobs:
 
       - name: Install system dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+          sudo apt-get update -y
+          sudo apt-get install -y \
+            build-essential \
+            pkg-config \
+            libglib2.0-dev \
+            libgirepository1.0-dev \
+            libgtk-3-dev \
+            libwebkit2gtk-4.1-dev \
+            libjavascriptcoregtk-4.1-dev \
+            libsoup-3.0-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libssl-dev \
+            patchelf
 
       - name: Install frontend dependencies
         run: npm ci
@@ -230,9 +242,7 @@ jobs:
                   print(f"patched {p}")
               else:
                   print(f"marker not found in {p}")
-                  # fallback: append inside android block via simple insert before final } of android
                   if "applicationVariants.all" not in text:
-                      # try to insert before the first closing } after buildFeatures
                       import re
                       m = re.search(r"(buildFeatures\s*\{\s*buildConfig\s*=\s*true\s*\})", text)
                       if m:
@@ -290,25 +300,22 @@ jobs:
           path: artifacts
           merge-multiple: true
 
-      - name: Show collected artifacts (old releases are NOT deleted — each tag v* creates its own release)
+      - name: Show collected artifacts
         run: |
-          echo "Collected artifacts for ${{ github.ref_name }} — old version .exe files remain in their own releases (e.g. v1.0.0, v1.0.2):"
+          echo "Collected artifacts for ${{ github.ref_name }}:"
           find artifacts -type f | sort
-          echo "--- Old releases are preserved. New .exe is versioned (KWL Video Downloader_<version>_x64-setup.exe), so it never overwrites old .exe ---"
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
-          # draft:true keeps release as draft for manual review; publish will mark it as `latest` but all previous tags (v1.0.0, v1.0.2 …) remain with their .exe
           draft: true
-          # make_latest:true (default) moves the `latest` pointer to this tag, but does NOT delete any previous release or its .exe
           make_latest: true
           fail_on_unmatched_files: false
           files: artifacts/**/*
           body: |
             ## KWL Video Downloader ${{ github.ref_name }}
 
-            **KWL Video Downloader** — free, offline, and cross-platform. This release adds versioned installers; previous releases and their `.exe`/`.msi`/`.deb`/`.dmg`/`.apk` remain untouched on their own tags.
+            **KWL Video Downloader** — free, offline, and cross-platform.
 
             ### What's included
             - Download video and audio with real-time progress
@@ -316,18 +323,11 @@ jobs:
             - Automatic history management
             - 3GP output with FFmpeg transcode
             - Built-in runtime tool management (yt-dlp / FFmpeg / ffprobe)
-            - In-app report center (report an error, suggestion, or feedback)
+            - In-app report center
             - English and Bangla language support
-            - Completed downloads, history, and queue are local
 
-            ### Installers (this version — ${{ github.ref_name }})
-            - Windows: NSIS `.exe` + MSI `.msi` (e.g. `KWL Video Downloader_${{ github.ref_name }}_x64-setup.exe`)
+            ### Installers (${{ github.ref_name }})
+            - Windows: NSIS `.exe` + MSI `.msi`
             - Android: `.apk`
             - macOS: `.dmg`
             - Linux: `.deb` + `.AppImage`
-            - Updater artifacts: `latest.json` + `.sig` files (for silent auto-update)
-
-            ### Notes
-            - No account, login, license, or payment required
-            - Old versions’ `.exe` files are NOT deleted — each `v*` tag keeps its own assets; the new `.exe` is added alongside them
-            - KWL Nexus (cloud account, plans, licensing) ships in a future release
