@@ -18,7 +18,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - name: Setup Rust
@@ -31,8 +31,8 @@ jobs:
 
       - name: Install Linux system dependencies
         run: |
-          sudo apt-get update -y
-          sudo apt-get install -y \
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
             build-essential \
             pkg-config \
             libglib2.0-dev \
@@ -49,6 +49,7 @@ jobs:
       - name: Verify Linux system dependencies
         run: |
           pkg-config --modversion glib-2.0
+          pkg-config --modversion gobject-2.0
           pkg-config --modversion gtk+-3.0
           pkg-config --modversion webkit2gtk-4.1
 
