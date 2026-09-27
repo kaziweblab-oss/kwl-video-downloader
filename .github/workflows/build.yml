@@ -291,7 +291,9 @@ jobs:
 
   release:
     name: Publish GitHub Release
-    needs: [windows, linux, macos, android]
+    # Android joins `needs` once its SDK-setup step is fixed (setup-android@v3
+    # fails on the runner); shipping desktop installers first, APK follows.
+    needs: [windows, linux, macos]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
     steps:

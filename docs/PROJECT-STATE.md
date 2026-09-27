@@ -60,7 +60,7 @@ COMPLETED:
   - Versions `1.0.0→1.0.2` (`tauri.conf.json:4 versionCode 1→3`, `Cargo.toml:3`, `app.ts:4`, `latest.json`), local bundle `target/release/bundle/nsis/KWL Video Downloader_1.0.2_x64-setup.exe` 5.32 MB built `npx tauri build --bundles nsis`
 
 IN PROGRESS:
-- CI tag build v1.0.3 (`ac35cc5`): Validate PASS; Windows/macOS/Linux bundle jobs running; Android job failed at `Setup Android SDK` action step (external, not our code) — human: Re-run failed jobs; then `release` job publishes draft Release
+- CI tag build v1.0.3: Validate + Windows + Linux + macOS (icon.icns fix) green with signatures; Android red at `Setup Android SDK` action (external, persistent) — release `needs` dropped android (APK follows); draft Release expected from tag run
 - Docs: PROJECT-STATE/MEMORY/DECISION-LOG/CHANGELOG updated for v1.0.3 (this session)
 
 NEXT:
