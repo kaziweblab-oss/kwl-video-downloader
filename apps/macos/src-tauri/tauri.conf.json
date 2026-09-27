@@ -46,8 +46,11 @@
     "shortDescription": "Professional video/audio downloader",
     "longDescription": "KWL Video Downloader - Download videos and audio from thousands of sites. Free, fast, and professional.",
     "icon": [
-      "icons/icon.ico",
-      "icons/icon.png"
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
     ],
     "windows": {
       "nsis": {
