@@ -8,7 +8,43 @@ This file is the conversational memory layer for coding agents. Read it first, t
 - Append a new "Last session" entry (move the old one into "Earlier sessions") at the end of meaningful work.
 - Never delete accepted decisions; they are recorded in `DECISION-LOG.md`.
 
-## Last session: 2026-08-29 (v1.0.2 PATCH+BUNDLE — refresh direction fix + offline history thumb + update notification repair + 1.0.2 bundle)
+## Last session: 2026-09-27 (v1.0.3 CI unblock + local run — lock sync, platform lib fix, tag, managed tools)
+
+### What we did
+
+- **CI `npm ci` root cause + fix (no Rust error at all):**
+  - Tag push er por `Build and Release` run #14 fail korsilo `Validate → Install dependencies` step e; tests/builds skipped, release hoy ni. Logs API 403, kintu repo thekei proman: HEAD lock sudhu 4 workspace cover korto, repo te 10 ta tracked (`M package-lock.json` commit `dde7b62`).
+  - Tarporo CI run #16 fail — ebar asol karon: lock npm 11 diye generate kora, CI node 22/npm 10 chay `@esbuild/*@0.28.2` optional platform pkgs (`Missing: @esbuild/win32-x64@0.28.2`). Temp clean copy te `npx npm@10 ci` diye reproduce, `npm@10 install --package-lock-only` diye regenerate, `npm@10 ci` EXIT=0 verify, lock copy-back → commit `ac35cc5` + push. Repo tree te hat pore ni (temp dir pore delete).
+- **Platform lib-name fix `f36b552` (9 insertions, 0 deletions):**
+  - `apps/{android,linux,macos}/src-tauri/Cargo.toml` e `[lib] name = "kwl_video_downloader"` — `main.rs` oi crate path use kore, kintu package nam `kwl-video-downloader-*` (E0433, Windows host + CI runner sobkhane fail). Local `cargo check` char manifest e EXIT=0 verify (linux/macos/android er `dist/` build kore).
+  - Tag `v1.0.3` fixed commit `ac35cc5` e move (force — ager tag theke kono artifact ber hoy ni) → notun runs: Validate PASS, Windows/macOS/Linux building, Android `Setup Android SDK` action step e fail (external) → human Re-run pending.
+- **Local run (install chara):** Rust stable 1.98.1 (rustup, DNS retry 1 bar) + VS Build Tools MSVC 14.44 (quiet fail → passive/UAC → singleton-lock lesson: prothom quiet instance background e cholchilo) install. `dist/` na thakay `generate_context!` panic → `npm run build` (gitignored) → `tauri dev` window open. Managed tools: yt-dlp 2026.08.19 + ffmpeg/ffprobe 9.0.2 `%APPDATA%/KWL Video Downloader/tools/*/current/` e — YouTube analyze "private link" error thik (agey tools chilo na bole generic error aschilo). `Cargo.toml` CRLF touch-by-tooling 2 bar restore kora (content same).
+- **Gates PASS:** cargo check x4 EXIT=0, cargo test 77/0/3, tsc clean, vitest 58/58, vite build x4, dev app + real analyze ok.
+
+### Current focus
+
+- CI: Android job Re-run (human, GitHub UI) → `release` job draft Release → installer test + updater `Already on latest` verify.
+- Local app cholse (`tauri dev`); bondho korte hole bola lagbe.
+
+### Gotchas and learnings
+
+- `npm ci` fail ≠ Rust error: step-level job API diye confirm kora jay (logs e auth lage).
+- npm 11 lock ≠ npm 10 lock: optional platform pkgs (`@esbuild/*`) niye mismatch; CI er npm version diye regenerate korai fix. Workflows untouched.
+- Crate name vs package name: `-` → `_` auto-convert e `kwl-video-downloader-linux` lib hoy `kwl_video_downloader_linux`; `main.rs` alada nam chaile `[lib] name` dite hoy.
+- VS installer singleton lock: quiet instance cholte thakle ditiyo instance silently exit kore — `Get-Process setup` + log (`%TEMP%/dd_*.log`) dekhe bujha jay.
+- `generate_context!` compile-time e `frontendDist` dir chay — `tauri dev` eo `dist/` build kora lage (gitignored, safe).
+- Tauri/Cargo tooling `Cargo.toml` line-ending touch korte pare (content same) — `git checkout --` diye tree clean rakha.
+
+### Resume checklist
+
+1. GitHub Actions: Android Re-run → draft Release check
+2. `git status` clean (dist/target/node_modules ignored)
+3. Local: `tauri dev` background job + managed tools `%APPDATA%/KWL Video Downloader/tools/*/current/`
+4. Toolchain: cargo 1.98.1, MSVC 14.44 (`C:\BuildTools`), WebView2 present
+
+## Earlier sessions
+
+### 2026-08-29 (v1.0.2 PATCH+BUNDLE — refresh direction fix + offline history thumb + update notification repair + 1.0.2 bundle)
 
 ### What we did
 
@@ -57,8 +93,6 @@ This file is the conversational memory layer for coding agents. Read it first, t
 4. `cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml`
 5. `npx tauri build --bundles nsis` → verify `KWL Video Downloader_1.0.2_x64-setup.exe`
 6. `git tag v1.0.2` → `git push --tags` → CI signed artifacts → test updater toast `Update/Cancel`
-
-## Earlier sessions
 
 ### 2026-08-28 (v1.0.0 release build — multi-platform packaging + free offline cleanup)
 

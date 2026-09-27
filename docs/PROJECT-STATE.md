@@ -1,10 +1,10 @@
 # Project State
 
 CURRENT PHASE:
-v1.0.2 patch+bundle — refresh direction, offline history thumb, update notification (Update/Cancel + no auto-close), dynamic version
+v1.0.3 CI release — lock sync (npm 10), platform lib-name fix, tag v1.0.3 pushed, GitHub builds running
 
 CURRENT TASK:
-Ship v1.0.2 new bundle: `KWL Video Downloader_1.0.2_x64-setup.exe` built locally (5.32 MB). Next: `git tag v1.0.2` + `git push --tags` for signed CI artifacts.
+v1.0.3 tag builds in progress (Validate PASS; Windows/macOS/Linux building; Android SDK-setup action failed — needs Re-run; then draft Release).
 
 COMPLETED:
 - Phase 0: Repository bootstrap
@@ -45,6 +45,11 @@ COMPLETED:
 - Git (new):
   - `git init`; committed all source as `8ec31c1` "chore: release v1.0.0 - free offline downloader with in-app report system"; tag `v1.0.0` created
   - `.gitignore` hardened further: `**/src-tauri/gen/`, `artifacts/`, `pnpm-lock.yaml`, `*.tsbuildinfo`, stray session `*-output*.txt` files
+- v1.0.3 CI unblock (2026-09-27, commits `dde7b62`/`f36b552`/`ac35cc5`, tag `v1.0.3` → `ac35cc5`):
+  - `package-lock.json` synced to all 10 workspaces (`dde7b62`); then regenerated with npm 10 (`ac35cc5`) because the npm-11 lock omitted `@esbuild/*@0.28.2` optional platform pkgs → CI `npm ci` failed `Missing: @esbuild/win32-x64@0.28.2` (reproduced locally with `npx npm@10 ci`, verified EXIT=0 after regen)
+  - Platform lib-name fix (`f36b552`): `apps/{android,linux,macos}/src-tauri/Cargo.toml` gained `[lib] name = "kwl_video_downloader"` — `main.rs` uses that crate path but packages are named `kwl-video-downloader-*` (E0433, failed everywhere incl. CI runners)
+  - Local toolchain installed (Rust stable 1.98.1 + VS Build Tools MSVC 14.44); managed tools placed (`yt-dlp 2026.08.19`, `ffmpeg/ffprobe 9.0.2` under `%APPDATA%/KWL Video Downloader/tools/*/current/`); `tauri dev` runs, YouTube analyze works with real tools
+  - No app-logic change: 9 insertions, 0 deletions in platform manifests + lockfile only
 - v1.0.1 → v1.0.2 patch:
   - Pull-to-refresh direction flipped `AppShell.tsx:141` from bottom to top (`atTop` + `prevTop>80`), removed bottom spinner; `Thumbnail.tsx:1` offline fallback (video icon + format) for history/queue
   - Updater: `desktop/package.json` added `updater/process`, `settingsStore autoUpdate`, `SettingsView` Check Now wired (available/download + Cancel, `Current version v1.0.2`), `App.tsx:418` manual-only toast with `Update/Cancel` modal (`isUpdating` overlay) + `valid json/json parse/html` treated as up-to-date, `Notification` API, no auto `relaunch`
@@ -52,42 +57,43 @@ COMPLETED:
   - Versions `1.0.0→1.0.2` (`tauri.conf.json:4 versionCode 1→3`, `Cargo.toml:3`, `app.ts:4`, `latest.json`), local bundle `target/release/bundle/nsis/KWL Video Downloader_1.0.2_x64-setup.exe` 5.32 MB built `npx tauri build --bundles nsis`
 
 IN PROGRESS:
-- Human/CI: `git tag v1.0.2` + `git push --tags` → CI signed Release (`latest.json` + `.sig`) + version `v1.0.2` dynamic check
+- CI tag build v1.0.3 (`ac35cc5`): Validate PASS; Windows/macOS/Linux bundle jobs running; Android job failed at `Setup Android SDK` action step (external, not our code) — human: Re-run failed jobs; then `release` job publishes draft Release
+- Docs: PROJECT-STATE/MEMORY/DECISION-LOG/CHANGELOG updated for v1.0.3 (this session)
 
 NEXT:
-- Human: install `1.0.2_x64-setup.exe` over `1.0.0`, verify Sidebar `v1.0.2`, offline history thumb, upore scroll → refresh, Settings Current version + Check Now → `Already on latest` (until 1.0.3), next update toast `Update/Cancel` no auto-close
+- Human: Re-run Android job on GitHub if SDK step was transient; publish draft Release; install `1.0.3` NSIS over local dev and verify Sidebar `v1.0.3`, Analyze with real tools, updater `Already on latest`
 
 KNOWN ISSUES:
-- Local machine has no Android SDK and no Java; Android build verified only in CI configuration (not executed anywhere yet)
-- Git repo now exists locally with tag `v1.0.0`, but no remote is configured; push/publish requires human setup
+- Local machine now has Rust 1.98.1 + MSVC 14.44 + managed yt-dlp/ffmpeg (installed this session); Java still missing locally so Android packaging stays CI-only
+- Git remote configured (`kaziweblab-oss/kwl-video-downloader`), `main` pushed, tag `v1.0.3` → `ac35cc5` pushed
 - Windows WebView GUI click-through remains human-required (unchanged)
 
 BLOCKED:
-- Android init/build: Java + Android SDK required locally (CI config ready)
-- Release publish: git remote required (repo + tag `v1.0.0` created locally; workflow ready)
+- Android APK: `android-actions/setup-android@v3` step failed on CI runner (external) — Re-run needed; Rust side verified locally
+- Release publish: waiting on all 4 platform jobs (Windows/macOS/Linux running)
 
-LAST VALIDATION (all on the local desktop machine, 2026-08-29 23:10):
-- PASS: `cargo check` — 2 warnings (FileProgressState.speed/eta unused, mark_job_processing unused)
-- PASS: `npm run check` (desktop tsc) — clean
-- PASS: `npm test` (root vitest) — 58/58 passed
-- PASS: `npm run build --workspace @kwl/desktop` — vite 281.78 kB / gzip 80.14 kB (v1.0.2)
-- PASS: `npx tauri build --bundles nsis` → `target/release/bundle/nsis/KWL Video Downloader_1.0.2_x64-setup.exe` 5.32 MB (1.0.0 was 5.31 MB) — warning `public key found but no private key` (CI will sign)
-- PASS: `git status` clean except version bumps + bundle; tags `v1.0.0` exists, `v1.0.2` pending push
-- BLOCKED: `tauri android init` locally (Java missing); CI handles
-- PASS: Dynamic version Sidebar/About `v1.0.2`, offline thumb fallback, top-scroll refresh, update modal Update/Cancel no auto-close
+LAST VALIDATION (local machine, 2026-09-27):
+- PASS: `cargo check` desktop + android + linux + macos manifests — EXIT=0, no errors (linux/macos/android needed the `[lib]` fix + built `dist/`)
+- PASS: `cargo test` desktop — 77 passed, 0 failed, 3 ignored
+- PASS: `npm run check` (tsc) — clean; `npm test` (vitest) — 58/58
+- PASS: `npm run build` desktop/android/linux/macos frontends — dist built (gitignored)
+- PASS: `npx tauri dev` — window launches, real YouTube analyze works via managed yt-dlp/ffmpeg
+- PASS (CI observed via API): `Build and Release` run #19 Validate job — npm ci + tests + typecheck success on `ac35cc5`
+- IN PROGRESS (CI): Windows/macOS/Linux bundle jobs; Android job FAILED at `Setup Android SDK` action (external) — needs human Re-run
+- NOT RUN: draft Release publish (blocked on all 4 platform jobs); Android APK anywhere; signed-updater end-to-end
 
-TESTS: PASS (58 vitest; cargo 68/3 ignored not re-run)
+TESTS: PASS (58 vitest; 77 cargo / 3 ignored)
 TYPECHECK: PASS
-BUILD: PASS (frontend vite + Tauri NSIS)
-REAL RUNTIME: PASS (bundle built, GUI HUMAN_REQUIRED for install)
-INSTALLER: PASS (1.0.2 NSIS built locally; MSI/DEB/AppImage/DMG need CI)
+BUILD: PASS (frontend vite x4 + Tauri dev compile 447 crates; CI bundles running)
+REAL RUNTIME: PASS (dev app + managed tools, YouTube analyze ok)
+INSTALLER: IN PROGRESS (CI Windows/macOS/Linux building; Android blocked on SDK action)
 LICENSE: NOT RUN (free app)
 KWL NEXUS: REMOVED
-UPDATE: PASS (manual toast Update/Cancel, valid json→upToDate, no auto relaunch, Settings Current version, Notification API)
-REPORT SYSTEM: PASS
-ANDROID APK: BLOCKED (CI)
-GIT RELEASE: BLOCKED (no remote; `v1.0.2` ready to push)
-LAST UPDATED: 2026-08-29
+UPDATE: NOT RUN (needs published Release + signatures)
+REPORT SYSTEM: PASS (unchanged)
+ANDROID APK: BLOCKED (CI SDK-setup action failed; Rust side verified locally)
+GIT RELEASE: IN PROGRESS (`v1.0.3` → `ac35cc5` pushed; runs triggered; no Release published yet)
+LAST UPDATED: 2026-09-27
 
 ## Architecture constraints
 - Tauri 2
@@ -105,4 +111,4 @@ LAST UPDATED: 2026-08-29
 - Keep the verified runtime/downloader architecture intact and the typed Tauri bridge for native interactions
 
 ## Current version
-1.0.2
+1.0.3

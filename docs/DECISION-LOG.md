@@ -1,5 +1,12 @@
 # Decision Log
 
+## 2026-09-27
+### Decision: regenerate package-lock.json with CI's npm version (npm 10) instead of local npm 11
+The npm-11-generated lock omitted `@esbuild/*@0.28.2` optional platform packages, so CI (`node 22` / npm 10) `npm ci` failed instantly with `Missing: @esbuild/win32-x64@0.28.2`. Reproduced in a clean temp copy with `npx npm@10 ci`, regenerated via `npm@10 install --package-lock-only`, verified `npm@10 ci` EXIT=0, copied only the lock back. No workflow files changed.
+
+### Decision: name all platform lib targets `kwl_video_downloader` via `[lib] name`
+`apps/{android,linux,macos}` `main.rs` files address the `kwl_video_downloader::` crate path, but their package names (`kwl-video-downloader-*`) produce differently-named libs (E0433 on every host incl. CI runners). Explicit `[lib] name` (9 insertions, 0 deletions, no logic change) fixes all three; verified with `cargo check` on all four manifests.
+
 ## 2026-08-29
 ### Decision: v1.0.0 in-app report system (Error / Suggestion / Feedback) with email + local fallback queue
 Reports are sent from **Settings → "📧 Report Issue / Suggestion"**. The frontend (`useReport.ts`, `ReportModal.tsx`, `ReportButton.tsx`) sends a typed payload through the `send_report` Tauri command backed by `src-tauri/src/report.rs`. Delivery uses a Resend-style HTTP POST to `https://api.resend.com/emails` (Bearer API key) reading process env `REPORT_EMAIL_TO` / `REPORT_EMAIL_FROM` / `REPORT_EMAIL_API_KEY` — no SMTP crate (lettre stayed removed per the master prompt). If email is not configured or delivery fails, the report is queued to `reports.json` (app data dir, capped at 200, oldest preserved) and `flush_pending_reports` retries at next launch. A report always returns `Ok` to the UI (either emailed or queued); UI shows the exact required toasts (success `Thank you for your report! 🙏`, failure `Failed to send report. Please try again.`). Optional "attach diagnostic info" prepends app name/version/platform/environment + settings.

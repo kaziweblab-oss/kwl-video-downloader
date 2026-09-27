@@ -4,6 +4,18 @@ All notable changes to KWL Video Downloader are documented in this file.
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.0.3] - 2026-09-27
+
+### Fixed
+
+- CI release unblocked: `package-lock.json` synced to all 10 workspaces and
+  regenerated with npm 10 (CI's version) so `npm ci` passes; platform
+  `src-tauri` lib targets named `kwl_video_downloader` so Android/Linux/macOS
+  builds resolve the shared crate path (E0433 fixed, no logic change)
+- Local run without installing: documented toolchain (Rust 1.98.1 + MSVC 14.44)
+  and managed runtime tools (yt-dlp 2026.08.19, FFmpeg/ffprobe 9.0.2); YouTube
+  analysis no longer reports the generic private-link error when tools exist
+
 ## [1.0.0] - 2026-08-28
 
 First production release of KWL Video Downloader.
