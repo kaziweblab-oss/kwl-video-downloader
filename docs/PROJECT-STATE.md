@@ -45,6 +45,9 @@ COMPLETED:
 - Git (new):
   - `git init`; committed all source as `8ec31c1` "chore: release v1.0.0 - free offline downloader with in-app report system"; tag `v1.0.0` created
   - `.gitignore` hardened further: `**/src-tauri/gen/`, `artifacts/`, `pnpm-lock.yaml`, `*.tsbuildinfo`, stray session `*-output*.txt` files
+- v1.0.3 release-fix round 2 (2026-09-28, unpushed→this commit):
+  - Root-cause of CI bundle failures: `npx tauri build` from repo root resolves the **android** app (alphabetical), so Windows/macOS/Linux jobs compiled `kwl-video-downloader-android` and NSIS bundling failed `os error 2`. Fix: each job now `cd`s into its app dir (`apps/desktop|linux|macos|android`) before the tauri command; `release.yml` auto tag-trigger disabled (build.yml is canonical) to stop duplicate releases.
+  - Signing: old private key unavailable → generated fresh keypair (no password); new pubkey in all 4 `tauri.conf.json`; private key kept OUT of repo (`Temp/opencode/kwl-signing.key`) — human must add it as `TAURI_SIGNING_PRIVATE_KEY` repo secret.
 - v1.0.3 CI unblock (2026-09-27, commits `dde7b62`/`f36b552`/`ac35cc5`, tag `v1.0.3` → `ac35cc5`):
   - `package-lock.json` synced to all 10 workspaces (`dde7b62`); then regenerated with npm 10 (`ac35cc5`) because the npm-11 lock omitted `@esbuild/*@0.28.2` optional platform pkgs → CI `npm ci` failed `Missing: @esbuild/win32-x64@0.28.2` (reproduced locally with `npx npm@10 ci`, verified EXIT=0 after regen)
   - Platform lib-name fix (`f36b552`): `apps/{android,linux,macos}/src-tauri/Cargo.toml` gained `[lib] name = "kwl_video_downloader"` — `main.rs` uses that crate path but packages are named `kwl-video-downloader-*` (E0433, failed everywhere incl. CI runners)

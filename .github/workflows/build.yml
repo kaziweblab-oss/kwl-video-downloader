@@ -60,7 +60,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
           npm run build --workspace @kwl/desktop
-          npx tauri build --bundles nsis msi
+          cd apps/desktop && npx tauri build --bundles nsis msi
 
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
@@ -117,8 +117,8 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
-          npm run build --workspace @kwl/desktop
-          npx tauri build --bundles deb appimage
+          npm run build --workspace @kwl/linux
+          cd apps/linux && npx tauri build --bundles deb appimage
 
       - name: Upload Linux artifacts
         uses: actions/upload-artifact@v4
@@ -157,8 +157,8 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
-          npm run build --workspace @kwl/desktop
-          npx tauri build --bundles dmg
+          npm run build --workspace @kwl/macos
+          cd apps/macos && npx tauri build --bundles dmg
 
       - name: Upload macOS artifacts
         uses: actions/upload-artifact@v4
@@ -206,7 +206,7 @@ jobs:
         run: npm ci
 
       - name: Init Android project
-        run: npx tauri android init
+        run: cd apps/android && npx tauri android init
 
       - name: Patch APK output name to kwl-video-downloader-{version}.apk
         run: |
@@ -277,7 +277,7 @@ jobs:
           grep -n "uses-permission" "$MANIFEST"
 
       - name: Build Android APK
-        run: npx tauri android build --apk
+        run: cd apps/android && npx tauri android build --apk
 
       - name: Upload Android artifacts
         uses: actions/upload-artifact@v4

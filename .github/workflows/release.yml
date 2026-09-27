@@ -1,9 +1,8 @@
 name: Release
 
 on:
-  push:
-    tags:
-      - 'v*'
+  # Auto tag builds disabled to avoid duplicate releases — build.yml is the
+  # canonical tag release path. Keep manual dispatch for emergencies.
   workflow_dispatch:
 
 env:
