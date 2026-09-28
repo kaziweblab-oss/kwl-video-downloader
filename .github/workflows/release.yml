@@ -161,21 +161,21 @@ jobs:
       - name: Install dependencies
         run: pnpm install
       - name: Init Android
-        run: npx tauri android init --ci || true
+        run: cd apps/android && npx tauri android init --ci || true
       - name: Stage bundled tools
         run: |
           for tool in yt-dlp ffmpeg ffprobe; do
             if compgen -G "apps/desktop/src-tauri/android/app/src/main/assets/native_tools/$tool*" > /dev/null; then
-              mkdir -p apps/desktop/src-tauri/gen/android/app/src/main/assets/native_tools
-              cp apps/desktop/src-tauri/android/app/src/main/assets/native_tools/$tool* apps/desktop/src-tauri/gen/android/app/src/main/assets/native_tools/ 2>/dev/null || true
-              chmod 755 apps/desktop/src-tauri/gen/android/app/src/main/assets/native_tools/$tool* 2>/dev/null || true
+              mkdir -p apps/android/src-tauri/gen/android/app/src/main/assets/native_tools
+              cp apps/desktop/src-tauri/android/app/src/main/assets/native_tools/$tool* apps/android/src-tauri/gen/android/app/src/main/assets/native_tools/ 2>/dev/null || true
+              chmod 755 apps/android/src-tauri/gen/android/app/src/main/assets/native_tools/$tool* 2>/dev/null || true
             fi
           done
       - name: Build APK (signed)
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        run: npx tauri android build
+        run: cd apps/android && npx tauri android build
       - name: Upload to Release
         uses: softprops/action-gh-release@v2
         with:

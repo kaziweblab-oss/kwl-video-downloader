@@ -216,7 +216,7 @@ jobs:
         run: npm ci
 
       - name: Init Android project
-        run: cd apps/android && npx tauri android init
+        run: cd apps/android && npx tauri android init --ci
 
       - name: Patch APK output name to kwl-video-downloader-{version}.apk
         run: |
@@ -268,18 +268,19 @@ jobs:
         run: |
           for tool in yt-dlp ffmpeg ffprobe; do
             if compgen -G "apps/desktop/src-tauri/android/app/src/main/assets/native_tools/$tool*" > /dev/null; then
-              mkdir -p apps/desktop/src-tauri/gen/android/app/src/main/assets/native_tools
-              cp apps/desktop/src-tauri/android/app/src/main/assets/native_tools/$tool* apps/desktop/src-tauri/gen/android/app/src/main/assets/native_tools/
-              chmod 755 apps/desktop/src-tauri/gen/android/app/src/main/assets/native_tools/$tool*
+              mkdir -p apps/android/src-tauri/gen/android/app/src/main/assets/native_tools
+              cp apps/desktop/src-tauri/android/app/src/main/assets/native_tools/$tool* apps/android/src-tauri/gen/android/app/src/main/assets/native_tools/
+              chmod 755 apps/android/src-tauri/gen/android/app/src/main/assets/native_tools/$tool*
             fi
           done
-          find apps/desktop/src-tauri/gen/android/app/src/main/assets -maxdepth 3 -type f 2>/dev/null | sort
+          find apps/android/src-tauri/gen/android/app/src/main/assets -maxdepth 3 -type f 2>/dev/null | sort
 
       - name: Ensure Android permissions in the generated manifest
         run: |
-          MANIFEST=apps/desktop/src-tauri/gen/android/app/src/main/AndroidManifest.xml
+          MANIFEST=apps/android/src-tauri/gen/android/app/src/main/AndroidManifest.xml
           if [ ! -f "$MANIFEST" ]; then
-            MANIFEST=apps/desktop/src-tauri/android/app/src/main/AndroidManifest.xml
+            echo "ERROR: AndroidManifest.xml not found — 'tauri android init' did not generate apps/android/src-tauri/gen/android" >&2
+            exit 1
           fi
           for perm in android.permission.INTERNET android.permission.READ_EXTERNAL_STORAGE android.permission.WRITE_EXTERNAL_STORAGE; do
             grep -q "name=\"$perm\"" "$MANIFEST" || sed -i "s#</manifest>#    <uses-permission android:name=\"$perm\" />\n</manifest>#" "$MANIFEST"
