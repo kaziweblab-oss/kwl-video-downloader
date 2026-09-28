@@ -305,9 +305,8 @@ jobs:
 
   release:
     name: Publish GitHub Release
-    # Android joins `needs` once its SDK-setup step is fixed (setup-android@v3
-    # fails on the runner); shipping desktop installers first, APK follows.
-    needs: [windows, linux, macos]
+    # Android SDK + build fixed (manual SDK setup, tauri npm script) — full set ships together.
+    needs: [windows, linux, macos, android]
     permissions:
       contents: write
     runs-on: ubuntu-latest
