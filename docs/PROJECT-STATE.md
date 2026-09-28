@@ -45,6 +45,8 @@ COMPLETED:
 - Git (new):
   - `git init`; committed all source as `8ec31c1` "chore: release v1.0.0 - free offline downloader with in-app report system"; tag `v1.0.0` created
   - `.gitignore` hardened further: `**/src-tauri/gen/`, `artifacts/`, `pnpm-lock.yaml`, `*.tsbuildinfo`, stray session `*-output*.txt` files
+- Honest analyze errors (2026-09-28, unpushed→this commit):
+  - YouTube bot-check/429 looked identical to a private link (backend swallowed stderr into one generic message). Now `classify_analyze_failure()` maps bot-check/rate-limit → wait-and-retry message, login/private → private message, rest unchanged; frontend shows matching messages. 3 new tests per app. Verified live cause: direct yt-dlp run shows HTTP 429 + "Sign in to confirm you're not a bot" on this network.
 - v1.0.3 tool auto-update (2026-09-28, unpushed→this commit):
   - `background_update_check()` was a stub (health-check only); now really checks yt-dlp GitHub releases (win/linux/mac assets) + BtbN FFmpeg-Builds `latest` (Windows win64-gpl bundle, newest by major.minor.patch so same 9.0.2 never re-downloads), downloads (400MB cap, timeouts), extracts via `zip` dep, activates via existing staged+health+backup+rollback, defers while downloads active, silent on any failure — app can neither crash nor hang from it; first-run missing tools also provisioned.
   - Verified real API shapes before coding (`/repos/...` prefix required; BtbN `latest` tag + autobuild asset names informed picker design). 5 new deterministic tests (82 cargo pass); 4 warnings in test profile are pre-existing.

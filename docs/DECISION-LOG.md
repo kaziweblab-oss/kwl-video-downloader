@@ -1,6 +1,8 @@
 # Decision Log
 
 ## 2026-09-28
+### Decision: honest analyze-failure messages (bot-check vs private vs generic)
+yt-dlp stderr was swallowed into one generic error so a YouTube 429/bot-check looked like a private link. `classify_analyze_failure()` now distinguishes them in Rust with matching frontend branches; all prior mappings preserved. Proven by direct yt-dlp run on this network (429 + bot-check on a public video).
 ### Decision: real background tool auto-update (yt-dlp all desktop OSes, ffmpeg/ffprobe Windows-only)
 `background_update_check()` only did a health check; the network half was a stub comment. Now it checks yt-dlp releases (per-OS standalone asset) and BtbN `latest` (newest win64-gpl non-shared zip by major.minor.patch), downloads with cap+timeouts, extracts with the `zip` crate (new dep in all 4 manifests), and activates through the existing staged/health/backup/rollback path. Deferred while downloads are active, silent on any failure, no new Tauri commands or UI. Linux/macOS ffmpeg skipped (would need tar.xz + separate sources) — documented limitation, current tools kept.
 

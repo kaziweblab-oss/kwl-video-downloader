@@ -142,6 +142,12 @@ function getFriendlyErrorMessage(error: unknown, fallback: string): string {
   if (lower.includes('invalid url') || lower.includes('only http') || lower.includes('url is required')) {
     return 'Please enter a valid http or https link.';
   }
+  if (lower.includes('not a bot') || lower.includes('bot check') || lower.includes('temporarily blocking automated') || lower.includes('429') || lower.includes('too many requests') || lower.includes('rate-limit') || lower.includes('rate limited')) {
+    return 'YouTube is temporarily blocking requests from this network (bot check). Please wait a few minutes and try again.';
+  }
+  if (lower.includes('requires login') || lower.includes('is private or requires login')) {
+    return 'This video is private or requires login and cannot be analyzed.';
+  }
   if (lower.includes('unsupported url') || lower.includes('unsupported') || lower.includes('private') || lower.includes('unavailable') || lower.includes('no video') || lower.includes('video unavailable') || lower.includes('not available') || lower.includes('unable to retrieve') || lower.includes('unable to retrieve media details') || lower.includes('unable to retrieve playlist details')) {
     return 'This link is private, unsupported, or unavailable. Please try a public video link.';
   }

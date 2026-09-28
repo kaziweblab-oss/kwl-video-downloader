@@ -1098,6 +1098,32 @@ pub fn get_app_info_impl() -> AppInfoResponse {
     }
 }
 
+/// Map yt-dlp stderr to a safe, honest user-facing message.
+/// A YouTube bot-check/rate-limit must NOT look like a private link.
+fn classify_analyze_failure(stderr: &str) -> String {
+    let lower = stderr.to_lowercase();
+    if lower.contains("confirm you're not a bot")
+        || lower.contains("confirm you are not a bot")
+        || lower.contains("sign in to confirm")
+        || lower.contains("http error 429")
+        || lower.contains("too many requests")
+        || lower.contains("rate-limit")
+        || lower.contains("rate limited")
+    {
+        return "YouTube is temporarily blocking automated requests from this network (bot check). Please wait a few minutes and try again.".to_string();
+    }
+    if lower.contains("private video")
+        || lower.contains("video is private")
+        || lower.contains("login required")
+        || lower.contains("log in to confirm your age")
+        || lower.contains("age-restricted")
+        || lower.contains("age restricted")
+    {
+        return "This video is private or requires login and cannot be analyzed.".to_string();
+    }
+    "Unable to retrieve media details from this URL".to_string()
+}
+
 pub fn analyze_url_impl(request: UrlRequest) -> Result<String, String> {
     validate_url_impl(UrlRequest { url: request.url.clone() })?;
 
@@ -1130,7 +1156,7 @@ pub fn analyze_url_impl(request: UrlRequest) -> Result<String, String> {
         eprintln!("[ANALYZE] yt-dlp failed for URL: {}, status: {}, stderr: {}", request.url, output.status, stderr);
     }
 
-    Err("Unable to retrieve media details from this URL".to_string())
+    Err(classify_analyze_failure(&stderr))
 }
 
 pub fn analyze_playlist_impl(request: UrlRequest) -> Result<Vec<String>, String> {
@@ -1872,6 +1898,33 @@ mod tests {
     use super::parse_progress_line;
     use super::parse_template_progress_line;
     use super::{build_media_analysis_payload, cleanup_temp_directory, create_temp_directory, validate_output_file};
+    use super::classify_analyze_failure;
+
+    #[test]
+    fn analyze_failure_bot_check_is_honest() {
+        let stderr = "ERROR: [youtube] aqz-KE-bpKQ: Sign in to confirm you're not a bot. Use --cookies-from-browser";
+        assert!(classify_analyze_failure(stderr).contains("temporarily blocking"));
+        let rate = "ERROR: Unable to download webpage: HTTP Error 429: Too Many Requests";
+        assert!(classify_analyze_failure(rate).contains("temporarily blocking"));
+    }
+
+    #[test]
+    fn analyze_failure_private_is_honest() {
+        let stderr = "ERROR: [youtube] abc123: Private video. Sign in if you've been granted access to this video";
+        assert!(classify_analyze_failure(stderr).contains("private or requires login"));
+    }
+
+    #[test]
+    fn analyze_failure_generic_stays_generic() {
+        assert_eq!(
+            classify_analyze_failure("ERROR: [youtube] xyz: Video unavailable"),
+            "Unable to retrieve media details from this URL"
+        );
+        assert_eq!(
+            classify_analyze_failure(""),
+            "Unable to retrieve media details from this URL"
+        );
+    }
 
     #[test]
     fn parses_yt_dlp_progress_values() {
