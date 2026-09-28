@@ -1,10 +1,10 @@
 # Project State
 
 CURRENT PHASE:
-v1.0.3 CI release — lock sync (npm 10), platform lib-name fix, tag v1.0.3 pushed, GitHub builds running
+v1.0.4 updater e2e test — version bumped everywhere, tag v1.0.4 pending push
 
 CURRENT TASK:
-v1.0.3 tag builds in progress (Validate PASS; Windows/macOS/Linux building; Android SDK-setup action failed — needs Re-run; then draft Release).
+Push tag v1.0.4 → CI builds → publish → installed v1.0.3 must offer one-click update to v1.0.4.
 
 COMPLETED:
 - Phase 0: Repository bootstrap
@@ -121,4 +121,4 @@ LAST UPDATED: 2026-09-27
 - Keep the verified runtime/downloader architecture intact and the typed Tauri bridge for native interactions
 
 ## Current version
-1.0.3
+1.0.4

@@ -4,6 +4,17 @@ All notable changes to KWL Video Downloader are documented in this file.
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.0.4] - 2026-09-28
+
+### Fixed
+
+- In-app updater end-to-end: correct release endpoint owner, CI-generated
+  `latest.json` with signatures, macOS `.app.tar.gz` updater bundles
+- Background runtime-tool auto-updates (yt-dlp everywhere, FFmpeg on Windows)
+  with staged safe activation, offline-safe and crash-free
+- Honest analysis errors: YouTube bot-check/rate-limit no longer reported as
+  a private link
+
 ## [1.0.3] - 2026-09-27
 
 ### Fixed
