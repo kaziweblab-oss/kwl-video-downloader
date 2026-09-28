@@ -1,6 +1,8 @@
 # Decision Log
 
 ## 2026-09-28
+### Decision: generate updater latest.json in CI (Tauri does not emit it)
+`tauri build` produces bundles + `.sig` files but no `latest.json` (that was `tauri-action`'s job; we build raw + manual upload). New `scripts/generate-latest-json.py` pairs bundles with sigs per OS-ARCH and fails loudly when empty; macOS uploads include `.app.tar.gz` since the updater cannot consume `.dmg`. Endpoint owner fixed to `kaziweblab-oss` in all 4 configs.
 ### Decision: honest analyze-failure messages (bot-check vs private vs generic)
 yt-dlp stderr was swallowed into one generic error so a YouTube 429/bot-check looked like a private link. `classify_analyze_failure()` now distinguishes them in Rust with matching frontend branches; all prior mappings preserved. Proven by direct yt-dlp run on this network (429 + bot-check on a public video).
 ### Decision: real background tool auto-update (yt-dlp all desktop OSes, ffmpeg/ffprobe Windows-only)
