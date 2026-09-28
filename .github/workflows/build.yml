@@ -294,6 +294,8 @@ jobs:
     # Android joins `needs` once its SDK-setup step is fixed (setup-android@v3
     # fails on the runner); shipping desktop installers first, APK follows.
     needs: [windows, linux, macos]
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
     steps:
