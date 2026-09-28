@@ -8,7 +8,30 @@ This file is the conversational memory layer for coding agents. Read it first, t
 - Append a new "Last session" entry (move the old one into "Earlier sessions") at the end of meaningful work.
 - Never delete accepted decisions; they are recorded in `DECISION-LOG.md`.
 
-## Last session: 2026-09-27 (v1.0.3 CI unblock + local run — lock sync, platform lib fix, tag, managed tools)
+## Last session: 2026-09-28 (tool auto-update real + honest analyze errors)
+
+### What we did
+
+- **Real background tool auto-update** (`tools.rs` x4 identical, `zip` dep, lock): startup detached thread checks yt-dlp releases (per-OS asset) + BtbN `latest` (win64-gpl, newest by major.minor.patch), downloads (400MB cap, timeouts), extracts, staged+health+backup+rollback activate, defers on active downloads, silent fail. Lesson: first cut picked nightly autobuilds (`N-126905` parsed as version → installed nightly over stable 9.0.2, would re-churn daily) — fixed with `-nX.Y[.Z]-` segment parsing + tests. Current ffmpeg is healthy BtbN nightly; stable previous kept for rollback.
+- **Honest analyze errors** (`lib.rs` x4 + `App.tsx` x4): bot-check/429 → wait-and-retry message (was mislabeled private); login/private → private message; rest unchanged. Proven: direct yt-dlp on public video gives HTTP 429 + bot-check on this network right now.
+- **Gates:** cargo 86+86+86+86 pass, tsc/vitest clean, checks x4 EXIT=0, dev app relaunched.
+- **Nexus truth:** no functional Nexus code exists (comments only, removed v1.0.0) — nothing to fix; real integration needs API URL/auth/endpoints/credentials (human blocker).
+- **OTA truth:** Tauri updates always ship full signed installer (~5MB); UI-only v1.0.4 still = one-click Update → auto install+restart, no manual download.
+
+### Current focus
+
+- User: retry YouTube later (429 transient); Publish draft Release (1 click); push v1.0.4 later to test updater e2e.
+- Dev app running with new code (watch rebuild).
+
+### Resume checklist
+
+1. `git status` clean; `main` pushed (415cb57)
+2. Managed tools: yt-dlp 2026.08.19, ffmpeg BtbN N-126905 (healthy), previous gyan 9.0.2 kept
+3. Temp signing key deleted (secret on GitHub)
+
+## Earlier sessions
+
+### 2026-09-27 (v1.0.3 CI unblock + local run — lock sync, platform lib fix, tag, managed tools)
 
 ### What we did
 
