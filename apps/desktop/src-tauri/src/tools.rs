@@ -739,16 +739,6 @@ fn download_to_temp(url: &str, prefix: &str) -> Result<PathBuf, String> {
     Ok(dest)
 }
 
-#[cfg(unix)]
-fn make_executable(path: &Path) {
-    use std::os::unix::fs::PermissionsExt;
-    if let Ok(md) = fs::metadata(path) {
-        let mut perm = md.permissions();
-        perm.set_mode(perm.mode() | 0o111);
-        let _ = fs::set_permissions(path, perm);
-    }
-}
-
 fn extract_wanted_from_zip(
     zip_path: &Path,
     dest_dir: &Path,
@@ -821,7 +811,7 @@ fn update_ytdlp_if_newer() {
         Err(_) => return,
     };
     #[cfg(unix)]
-    make_executable(&tmp);
+    let _ = make_executable(&tmp);
     let _ = staged_update_tool("yt-dlp", &tmp);
     cleanup_temp_download(&tmp);
 }

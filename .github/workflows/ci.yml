@@ -62,5 +62,8 @@ jobs:
       - name: TypeScript validation
         run: npm run check --if-present
 
+      - name: Build desktop frontend (required: generate_context! needs dist/)
+        run: npm run build --workspace @kwl/desktop
+
       - name: Rust validation
         run: cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml
