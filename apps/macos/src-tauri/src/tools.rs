@@ -596,26 +596,6 @@ fn is_newer_version(current: &str, latest: &str) -> bool {
     false
 }
 
-/// Compare only the first 3 numeric groups (major.minor.patch), ignoring
-/// build suffixes — so `n9.0.2-12-g...` does not supersede installed `9.0.2`.
-fn is_newer_stable_release(current: &str, latest: &str) -> bool {
-    let mut l: Vec<u64> = parse_version_tuple(latest).into_iter().take(3).collect();
-    if l.is_empty() {
-        return false;
-    }
-    let mut c: Vec<u64> = parse_version_tuple(current).into_iter().take(3).collect();
-    if c.is_empty() {
-        return true;
-    }
-    while c.len() < 3 {
-        c.push(0);
-    }
-    while l.len() < 3 {
-        l.push(0);
-    }
-    l > c
-}
-
 fn release_tag_and_assets(body: &serde_json::Value) -> Option<(String, Vec<(String, String)>)> {
     let tag = body.get("tag_name")?.as_str()?.trim().to_string();
     if tag.is_empty() {
@@ -660,31 +640,56 @@ fn pick_named_asset(assets: &[(String, String)], wanted: &str) -> Option<String>
         .map(|(_, u)| u.clone())
 }
 
+/// Version of a BtbN release asset from its `-nX.Y[.Z]-` tag segment, e.g.
+/// `ffmpeg-n9.0.2-12-...-win64-gpl-9.0.zip` -> [9,0,2]. Nightly autobuilds
+/// (`ffmpeg-N-126905-...`) and rolling names (`ffmpeg-master-latest-...`)
+/// have no such segment -> [] so they are never picked (no nightly churn).
+fn ffmpeg_asset_version(asset: &str) -> Vec<u64> {
+    for seg in asset.split('-') {
+        let s = seg
+            .strip_prefix('n')
+            .or_else(|| seg.strip_prefix('N'))
+            .unwrap_or("");
+        if !s
+            .chars()
+            .next()
+            .map(|c| c.is_ascii_digit())
+            .unwrap_or(false)
+        {
+            continue;
+        }
+        let v: Vec<u64> = parse_version_tuple(s).into_iter().take(3).collect();
+        if !v.is_empty() {
+            return v;
+        }
+    }
+    Vec::new()
+}
+
 /// Newest Windows GPL (non-shared) bundle asset by major.minor.patch.
-/// Returns (asset_name, download_url); the asset name itself carries the
-/// version (`ffmpeg-n9.0.2-…-win64-gpl-9.0.zip`).
+/// Returns (version, download_url).
 #[cfg(windows)]
-fn pick_newest_ffmpeg_win_asset(assets: &[(String, String)]) -> Option<(String, String)> {
+fn pick_newest_ffmpeg_win_asset(assets: &[(String, String)]) -> Option<(Vec<u64>, String)> {
     let mut best_ver: Vec<u64> = Vec::new();
-    let mut best: Option<(String, String)> = None;
+    let mut best_url: Option<String> = None;
     for (name, url) in assets {
         let l = name.to_lowercase();
         if !(l.contains("win64") && l.ends_with(".zip") && !l.contains("shared")) {
             continue;
         }
-        let mut v: Vec<u64> = parse_version_tuple(name).into_iter().take(3).collect();
+        let mut v = ffmpeg_asset_version(name);
         if v.is_empty() {
             continue;
         }
         while v.len() < 3 {
             v.push(0);
         }
-        if best.is_none() || v > best_ver {
+        if best_url.is_none() || v > best_ver {
             best_ver = v;
-            best = Some((name.clone(), url.clone()));
+            best_url = Some(url.clone());
         }
     }
-    best
+    best_url.map(|u| (best_ver, u))
 }
 
 fn fetch_release(api_url: &str) -> Result<(String, Vec<(String, String)>), String> {
@@ -827,12 +832,21 @@ fn update_ffmpeg_bundle_if_newer() {
         Ok(v) => v,
         Err(_) => return,
     };
-    let (asset_name, url) = match pick_newest_ffmpeg_win_asset(&assets) {
+    let (best_ver, url) = match pick_newest_ffmpeg_win_asset(&assets) {
         Some(v) => v,
         None => return,
     };
     let cur = current_managed_version("ffmpeg").unwrap_or_default();
-    if !is_newer_stable_release(&cur, &asset_name) {
+    let mut cur_v: Vec<u64> = parse_version_tuple(&cur).into_iter().take(3).collect();
+    let proceed = if cur_v.is_empty() {
+        true // missing/unreadable current -> allow install
+    } else {
+        while cur_v.len() < 3 {
+            cur_v.push(0);
+        }
+        best_ver > cur_v
+    };
+    if !proceed {
         return;
     }
     let zip_path = match download_to_temp(&url, "ffmpeg-bundle.zip") {
@@ -943,16 +957,23 @@ mod tests {
         assert!(!is_newer_version("1.0", "bogus"));
         assert!(is_newer_version("", "2026.08.19"));
         assert!(!is_newer_version("2026.08.19", ""));
-        // stable (major.minor.patch) ignores build suffixes: same 9.0.2 must not re-update
-        assert!(!is_newer_stable_release(
-            "9.0.2",
-            "ffmpeg-n9.0.2-12-gc867e13549-win64-gpl-9.0.zip"
-        ));
-        assert!(is_newer_stable_release(
-            "9.0.2",
-            "ffmpeg-n9.1-win64-gpl-9.1.zip"
-        ));
-        assert!(!is_newer_stable_release("9.0.2", "ffmpeg-n8.1.3-win64-gpl-8.1.zip"));
+    }
+
+    #[test]
+    fn ffmpeg_asset_version_shapes() {
+        // release assets carry -nX.Y[.Z]- tag segments
+        assert_eq!(
+            ffmpeg_asset_version("ffmpeg-n9.0.2-12-gc867e13549-win64-gpl-9.0.zip"),
+            vec![9, 0, 2]
+        );
+        assert_eq!(
+            ffmpeg_asset_version("ffmpeg-n8.1.3-win64-gpl-8.1.zip"),
+            vec![8, 1, 3]
+        );
+        // nightly autobuilds and rolling names have no release segment -> skipped
+        assert!(ffmpeg_asset_version("ffmpeg-N-126905-gb87602a63a-win64-gpl.zip").is_empty());
+        assert!(ffmpeg_asset_version("ffmpeg-N-126905-gb87602a63a-win64-gpl-shared.zip").is_empty());
+        assert!(ffmpeg_asset_version("ffmpeg-master-latest-win64-gpl.zip").is_empty());
     }
 
     #[test]
@@ -980,6 +1001,7 @@ mod tests {
     fn ffmpeg_win_asset_picker() {
         let body: serde_json::Value = serde_json::from_str(
             r#"{"tag_name":"latest","assets":[
+                {"name":"ffmpeg-N-126905-gb87602a63a-win64-gpl.zip","browser_download_url":"https://x/nightly.zip"},
                 {"name":"ffmpeg-n8.1.3-win64-gpl-8.1.zip","browser_download_url":"https://x/old.zip"},
                 {"name":"ffmpeg-n9.0-latest-win64-gpl-shared-9.0.zip","browser_download_url":"https://x/shared.zip"},
                 {"name":"ffmpeg-n9.0.2-12-gc867e13549-win64-gpl-9.0.zip","browser_download_url":"https://x/win.zip"},
@@ -987,9 +1009,9 @@ mod tests {
         )
         .unwrap();
         let (_, assets) = release_tag_and_assets(&body).unwrap();
-        let (name, url) = pick_newest_ffmpeg_win_asset(&assets).unwrap();
+        let (ver, url) = pick_newest_ffmpeg_win_asset(&assets).unwrap();
         assert_eq!(url, "https://x/win.zip");
-        assert!(name.contains("n9.0.2"));
+        assert_eq!(ver, vec![9, 0, 2]);
     }
 
     #[test]
