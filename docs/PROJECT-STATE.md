@@ -45,6 +45,9 @@ COMPLETED:
 - Git (new):
   - `git init`; committed all source as `8ec31c1` "chore: release v1.0.0 - free offline downloader with in-app report system"; tag `v1.0.0` created
   - `.gitignore` hardened further: `**/src-tauri/gen/`, `artifacts/`, `pnpm-lock.yaml`, `*.tsbuildinfo`, stray session `*-output*.txt` files
+- v1.0.3 tool auto-update (2026-09-28, unpushed→this commit):
+  - `background_update_check()` was a stub (health-check only); now really checks yt-dlp GitHub releases (win/linux/mac assets) + BtbN FFmpeg-Builds `latest` (Windows win64-gpl bundle, newest by major.minor.patch so same 9.0.2 never re-downloads), downloads (400MB cap, timeouts), extracts via `zip` dep, activates via existing staged+health+backup+rollback, defers while downloads active, silent on any failure — app can neither crash nor hang from it; first-run missing tools also provisioned.
+  - Verified real API shapes before coding (`/repos/...` prefix required; BtbN `latest` tag + autobuild asset names informed picker design). 5 new deterministic tests (82 cargo pass); 4 warnings in test profile are pre-existing.
 - v1.0.3 release-fix round 2 (2026-09-28, unpushed→this commit):
   - Root-cause of CI bundle failures: `npx tauri build` from repo root resolves the **android** app (alphabetical), so Windows/macOS/Linux jobs compiled `kwl-video-downloader-android` and NSIS bundling failed `os error 2`. Fix: each job now `cd`s into its app dir (`apps/desktop|linux|macos|android`) before the tauri command; `release.yml` auto tag-trigger disabled (build.yml is canonical) to stop duplicate releases.
   - Signing: old private key unavailable → generated fresh keypair (no password); new pubkey in all 4 `tauri.conf.json`; private key kept OUT of repo (`Temp/opencode/kwl-signing.key`) — human must add it as `TAURI_SIGNING_PRIVATE_KEY` repo secret.

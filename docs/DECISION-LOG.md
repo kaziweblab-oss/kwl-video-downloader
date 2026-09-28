@@ -1,5 +1,9 @@
 # Decision Log
 
+## 2026-09-28
+### Decision: real background tool auto-update (yt-dlp all desktop OSes, ffmpeg/ffprobe Windows-only)
+`background_update_check()` only did a health check; the network half was a stub comment. Now it checks yt-dlp releases (per-OS standalone asset) and BtbN `latest` (newest win64-gpl non-shared zip by major.minor.patch), downloads with cap+timeouts, extracts with the `zip` crate (new dep in all 4 manifests), and activates through the existing staged/health/backup/rollback path. Deferred while downloads are active, silent on any failure, no new Tauri commands or UI. Linux/macOS ffmpeg skipped (would need tar.xz + separate sources) — documented limitation, current tools kept.
+
 ## 2026-09-27
 ### Decision: regenerate package-lock.json with CI's npm version (npm 10) instead of local npm 11
 The npm-11-generated lock omitted `@esbuild/*@0.28.2` optional platform packages, so CI (`node 22` / npm 10) `npm ci` failed instantly with `Missing: @esbuild/win32-x64@0.28.2`. Reproduced in a clean temp copy with `npx npm@10 ci`, regenerated via `npm@10 install --package-lock-only`, verified `npm@10 ci` EXIT=0, copied only the lock back. No workflow files changed.

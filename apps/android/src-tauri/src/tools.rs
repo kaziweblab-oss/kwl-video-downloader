@@ -522,19 +522,374 @@ pub fn rollback_tool(tool: &str) -> ToolUpdateResult {
     }
 }
 
-// Background update check (non-blocking, offline-safe)
 static TOOL_CHECK_CACHE: OnceLock<Mutex<Option<AllToolsStatus>>> = OnceLock::new();
 
+// Background tool auto-update (real implementation).
+// Sources: yt-dlp GitHub releases (Windows/Linux/macOS standalone builds),
+// BtbN FFmpeg-Builds GitHub releases (Windows ffmpeg+ffprobe bundle).
+// Runs in a detached thread, is offline-safe, defers while downloads are
+// active, and never panics: every failure path is silently skipped so the
+// app can neither crash nor hang because of a tool update.
+const YTDLP_LATEST_API: &str = "https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest";
+#[cfg(windows)]
+const FFMPEG_LATEST_API: &str = "https://api.github.com/repos/BtbN/FFmpeg-Builds/releases/latest";
+const TOOL_HTTP_TIMEOUT_SECS: u64 = 20;
+const MAX_TOOL_DOWNLOAD_BYTES: u64 = 400 * 1024 * 1024;
+const TOOL_USER_AGENT: &str = "KWL-Video-Downloader";
+
+fn tool_http_client(with_total_timeout: bool) -> Result<reqwest::blocking::Client, String> {
+    let mut builder = reqwest::blocking::Client::builder()
+        .user_agent(TOOL_USER_AGENT)
+        .connect_timeout(std::time::Duration::from_secs(TOOL_HTTP_TIMEOUT_SECS));
+    if with_total_timeout {
+        builder = builder.timeout(std::time::Duration::from_secs(TOOL_HTTP_TIMEOUT_SECS));
+    }
+    builder.build().map_err(|e| format!("http client: {}", e))
+}
+
+/// Leading numeric components of a version string:
+/// "9.0.2-ess" -> [9,0,2], "n7.1" -> [7,1], "2026.08.19" -> [2026,8,19].
+fn parse_version_tuple(s: &str) -> Vec<u64> {
+    let mut out = Vec::new();
+    let mut cur: u64 = 0;
+    let mut in_num = false;
+    for ch in s.chars() {
+        if ch.is_ascii_digit() {
+            in_num = true;
+            cur = cur
+                .saturating_mul(10)
+                .saturating_add((ch as u8 - b'0') as u64);
+        } else if in_num {
+            out.push(cur);
+            cur = 0;
+            in_num = false;
+        }
+    }
+    if in_num {
+        out.push(cur);
+    }
+    out
+}
+
+fn is_newer_version(current: &str, latest: &str) -> bool {
+    let l = parse_version_tuple(latest);
+    if l.is_empty() {
+        return false;
+    }
+    let c = parse_version_tuple(current);
+    if c.is_empty() {
+        // Unknown/missing current version -> allow install; a successful
+        // install records a known version so this cannot loop every launch.
+        return true;
+    }
+    let n = c.len().max(l.len());
+    for i in 0..n {
+        let a = *c.get(i).unwrap_or(&0);
+        let b = *l.get(i).unwrap_or(&0);
+        if b > a {
+            return true;
+        }
+        if b < a {
+            return false;
+        }
+    }
+    false
+}
+
+/// Compare only the first 3 numeric groups (major.minor.patch), ignoring
+/// build suffixes — so `n9.0.2-12-g...` does not supersede installed `9.0.2`.
+fn is_newer_stable_release(current: &str, latest: &str) -> bool {
+    let mut l: Vec<u64> = parse_version_tuple(latest).into_iter().take(3).collect();
+    if l.is_empty() {
+        return false;
+    }
+    let mut c: Vec<u64> = parse_version_tuple(current).into_iter().take(3).collect();
+    if c.is_empty() {
+        return true;
+    }
+    while c.len() < 3 {
+        c.push(0);
+    }
+    while l.len() < 3 {
+        l.push(0);
+    }
+    l > c
+}
+
+fn release_tag_and_assets(body: &serde_json::Value) -> Option<(String, Vec<(String, String)>)> {
+    let tag = body.get("tag_name")?.as_str()?.trim().to_string();
+    if tag.is_empty() {
+        return None;
+    }
+    let assets = body.get("assets")?.as_array()?;
+    let mut out = Vec::new();
+    for a in assets {
+        let name = match a.get("name").and_then(|v| v.as_str()) {
+            Some(n) => n,
+            None => continue,
+        };
+        let url = match a.get("browser_download_url").and_then(|v| v.as_str()) {
+            Some(u) => u,
+            None => continue,
+        };
+        out.push((name.to_string(), url.to_string()));
+    }
+    if out.is_empty() {
+        None
+    } else {
+        Some((tag, out))
+    }
+}
+
+fn ytdlp_wanted_asset() -> Option<&'static str> {
+    if cfg!(windows) {
+        Some("yt-dlp.exe")
+    } else if cfg!(target_os = "linux") {
+        Some("yt-dlp_linux")
+    } else if cfg!(target_os = "macos") {
+        Some("yt-dlp_macos")
+    } else {
+        None
+    }
+}
+
+fn pick_named_asset(assets: &[(String, String)], wanted: &str) -> Option<String> {
+    assets
+        .iter()
+        .find(|(n, _)| n == wanted)
+        .map(|(_, u)| u.clone())
+}
+
+/// Newest Windows GPL (non-shared) bundle asset by major.minor.patch.
+/// Returns (asset_name, download_url); the asset name itself carries the
+/// version (`ffmpeg-n9.0.2-…-win64-gpl-9.0.zip`).
+#[cfg(windows)]
+fn pick_newest_ffmpeg_win_asset(assets: &[(String, String)]) -> Option<(String, String)> {
+    let mut best_ver: Vec<u64> = Vec::new();
+    let mut best: Option<(String, String)> = None;
+    for (name, url) in assets {
+        let l = name.to_lowercase();
+        if !(l.contains("win64") && l.ends_with(".zip") && !l.contains("shared")) {
+            continue;
+        }
+        let mut v: Vec<u64> = parse_version_tuple(name).into_iter().take(3).collect();
+        if v.is_empty() {
+            continue;
+        }
+        while v.len() < 3 {
+            v.push(0);
+        }
+        if best.is_none() || v > best_ver {
+            best_ver = v;
+            best = Some((name.clone(), url.clone()));
+        }
+    }
+    best
+}
+
+fn fetch_release(api_url: &str) -> Result<(String, Vec<(String, String)>), String> {
+    let client = tool_http_client(true)?;
+    let resp = client
+        .get(api_url)
+        .send()
+        .map_err(|e| format!("release api: {}", e))?;
+    if !resp.status().is_success() {
+        return Err(format!("release api status: {}", resp.status()));
+    }
+    let body: serde_json::Value = resp.json().map_err(|e| format!("release json: {}", e))?;
+    release_tag_and_assets(&body).ok_or_else(|| "release json shape".to_string())
+}
+
+fn temp_download_path(prefix: &str) -> Option<PathBuf> {
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
+    let dir =
+        std::env::temp_dir().join(format!("kwl-tool-dl-{}-{}-{}", std::process::id(), prefix, nanos));
+    fs::create_dir_all(&dir).ok()?;
+    Some(dir.join(prefix))
+}
+
+fn download_to_temp(url: &str, prefix: &str) -> Result<PathBuf, String> {
+    let client = tool_http_client(false)?;
+    let mut resp = client
+        .get(url)
+        .send()
+        .map_err(|e| format!("download: {}", e))?;
+    if !resp.status().is_success() {
+        return Err(format!("download status: {}", resp.status()));
+    }
+    let dest = temp_download_path(prefix).ok_or_else(|| "temp dir".to_string())?;
+    {
+        let mut file = fs::File::create(&dest).map_err(|e| format!("temp file: {}", e))?;
+        resp.copy_to(&mut file)
+            .map_err(|e| format!("download body: {}", e))?;
+    }
+    let size = fs::metadata(&dest).map(|m| m.len()).unwrap_or(u64::MAX);
+    if size > MAX_TOOL_DOWNLOAD_BYTES {
+        let _ = fs::remove_file(&dest);
+        return Err("download too large".to_string());
+    }
+    Ok(dest)
+}
+
+#[cfg(unix)]
+fn make_executable(path: &Path) {
+    use std::os::unix::fs::PermissionsExt;
+    if let Ok(md) = fs::metadata(path) {
+        let mut perm = md.permissions();
+        perm.set_mode(perm.mode() | 0o111);
+        let _ = fs::set_permissions(path, perm);
+    }
+}
+
+fn extract_wanted_from_zip(
+    zip_path: &Path,
+    dest_dir: &Path,
+    suffixes: &[&str],
+) -> Result<Vec<PathBuf>, String> {
+    let f = fs::File::open(zip_path).map_err(|e| format!("open archive: {}", e))?;
+    let mut zip = zip::ZipArchive::new(f).map_err(|e| format!("read archive: {}", e))?;
+    fs::create_dir_all(dest_dir).map_err(|e| format!("extract dir: {}", e))?;
+    let mut out = Vec::new();
+    for i in 0..zip.len() {
+        let mut entry = zip.by_index(i).map_err(|e| format!("archive entry: {}", e))?;
+        if entry.is_dir() {
+            continue;
+        }
+        let name = entry.name().to_string();
+        if suffixes.iter().any(|s| name.ends_with(s)) {
+            let base = name.rsplit('/').next().unwrap_or("tool.bin").to_string();
+            if base.is_empty() || base.contains("..") {
+                continue;
+            }
+            let dest = dest_dir.join(&base);
+            let mut df = fs::File::create(&dest).map_err(|e| format!("extract file: {}", e))?;
+            std::io::copy(&mut entry, &mut df).map_err(|e| format!("extract copy: {}", e))?;
+            out.push(dest);
+        }
+    }
+    if out.is_empty() {
+        return Err("no matching binaries in archive".to_string());
+    }
+    Ok(out)
+}
+
+fn current_managed_version(tool: &str) -> Option<String> {
+    resolve_managed_tool_path(tool).and_then(|p| get_version_for_path(&p, tool))
+}
+
+fn cleanup_temp_download(path: &Path) {
+    let _ = fs::remove_file(path);
+    if let Some(parent) = path.parent() {
+        let ours = parent
+            .file_name()
+            .and_then(|n| n.to_str())
+            .map(|n| n.starts_with("kwl-tool-dl-"))
+            .unwrap_or(false);
+        if ours {
+            let _ = fs::remove_dir_all(parent);
+        }
+    }
+}
+
+fn update_ytdlp_if_newer() {
+    let wanted = match ytdlp_wanted_asset() {
+        Some(w) => w,
+        None => return,
+    };
+    let (tag, assets) = match fetch_release(YTDLP_LATEST_API) {
+        Ok(v) => v,
+        Err(_) => return,
+    };
+    let url = match pick_named_asset(&assets, wanted) {
+        Some(u) => u,
+        None => return,
+    };
+    let cur = current_managed_version("yt-dlp").unwrap_or_default();
+    if !is_newer_version(&cur, &tag) {
+        return;
+    }
+    let tmp = match download_to_temp(&url, wanted) {
+        Ok(p) => p,
+        Err(_) => return,
+    };
+    #[cfg(unix)]
+    make_executable(&tmp);
+    let _ = staged_update_tool("yt-dlp", &tmp);
+    cleanup_temp_download(&tmp);
+}
+
+#[cfg(windows)]
+fn update_ffmpeg_bundle_if_newer() {
+    let (_tag, assets) = match fetch_release(FFMPEG_LATEST_API) {
+        Ok(v) => v,
+        Err(_) => return,
+    };
+    let (asset_name, url) = match pick_newest_ffmpeg_win_asset(&assets) {
+        Some(v) => v,
+        None => return,
+    };
+    let cur = current_managed_version("ffmpeg").unwrap_or_default();
+    if !is_newer_stable_release(&cur, &asset_name) {
+        return;
+    }
+    let zip_path = match download_to_temp(&url, "ffmpeg-bundle.zip") {
+        Ok(p) => p,
+        Err(_) => return,
+    };
+    let dest_dir = match zip_path.parent() {
+        Some(d) => d.join("out"),
+        None => {
+            cleanup_temp_download(&zip_path);
+            return;
+        }
+    };
+    let exes = match extract_wanted_from_zip(&zip_path, &dest_dir, &["bin/ffmpeg.exe", "bin/ffprobe.exe"]) {
+        Ok(v) => v,
+        Err(_) => {
+            cleanup_temp_download(&zip_path);
+            return;
+        }
+    };
+    for exe in &exes {
+        let lname = exe
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or_default()
+            .to_lowercase();
+        let tool = if lname.contains("ffprobe") {
+            "ffprobe"
+        } else {
+            "ffmpeg"
+        };
+        let _ = staged_update_tool(tool, exe);
+        let _ = fs::remove_file(exe);
+    }
+    cleanup_temp_download(&zip_path);
+    let _ = fs::remove_dir_all(&dest_dir);
+}
+
 pub fn background_update_check() {
-    // Spawn detached thread so startup not blocked
+    // Spawn detached thread so startup is never blocked. All failures are
+    // silently skipped (offline-safe) and active downloads defer updates.
     std::thread::spawn(|| {
         // Quick health check
         let status = startup_health_check();
         let cache = TOOL_CHECK_CACHE.get_or_init(|| Mutex::new(None));
-        if let Ok(mut g) = cache.lock() { *g = Some(status.clone()); }
-        // Simulate network check: if online, check for updates but don't auto-download if active
-        // For now, just log. Real network check would query GitHub releases etc.
-        // Offline: keep current verified tools
+        if let Ok(mut g) = cache.lock() {
+            *g = Some(status.clone());
+        }
+        if has_active_downloads() {
+            return;
+        }
+        update_ytdlp_if_newer();
+        #[cfg(windows)]
+        update_ffmpeg_bundle_if_newer();
+        let mut manifest = read_manifest();
+        manifest.last_check = Some(now_iso());
+        write_manifest(&manifest);
     });
 }
 
@@ -546,6 +901,7 @@ pub fn get_cached_tool_status() -> Option<AllToolsStatus> {
 mod tests {
     use super::*;
     use std::fs;
+    use std::io::Write;
     use std::path::PathBuf;
     use std::sync::{Mutex, OnceLock};
 
@@ -563,6 +919,101 @@ mod tests {
 
     fn temp_tools_dir() -> PathBuf {
         temp_tools_dir_unique("default")
+    }
+
+    #[test]
+    fn version_tuples_parse_shapes() {
+        assert_eq!(parse_version_tuple("2026.08.19"), vec![2026, 8, 19]);
+        assert_eq!(parse_version_tuple("n7.1"), vec![7, 1]);
+        assert_eq!(
+            parse_version_tuple("ffmpeg version 9.0.2-essentials_build"),
+            vec![9, 0, 2]
+        );
+        assert_eq!(parse_version_tuple(""), Vec::<u64>::new());
+        assert_eq!(parse_version_tuple("unknown"), Vec::<u64>::new());
+    }
+
+    #[test]
+    fn newer_detection_rules() {
+        assert!(!is_newer_version("2026.08.19", "2026.08.19"));
+        assert!(is_newer_version("2026.08.19", "2026.11.01"));
+        assert!(!is_newer_version("2026.11.01", "2026.08.19"));
+        assert!(!is_newer_version("9.0.2", "n7.1"));
+        assert!(is_newer_version("7.1", "n9.0"));
+        assert!(!is_newer_version("1.0", "bogus"));
+        assert!(is_newer_version("", "2026.08.19"));
+        assert!(!is_newer_version("2026.08.19", ""));
+        // stable (major.minor.patch) ignores build suffixes: same 9.0.2 must not re-update
+        assert!(!is_newer_stable_release(
+            "9.0.2",
+            "ffmpeg-n9.0.2-12-gc867e13549-win64-gpl-9.0.zip"
+        ));
+        assert!(is_newer_stable_release(
+            "9.0.2",
+            "ffmpeg-n9.1-win64-gpl-9.1.zip"
+        ));
+        assert!(!is_newer_stable_release("9.0.2", "ffmpeg-n8.1.3-win64-gpl-8.1.zip"));
+    }
+
+    #[test]
+    fn release_asset_pickers() {
+        let body: serde_json::Value = serde_json::from_str(
+            r#"{"tag_name":"2026.08.19","assets":[
+                {"name":"yt-dlp.exe","browser_download_url":"https://x/yt-dlp.exe"},
+                {"name":"yt-dlp_linux","browser_download_url":"https://x/yt-dlp_linux"},
+                {"name":"SHA256SUMS","browser_download_url":"https://x/sums"}]}"#,
+        )
+        .unwrap();
+        let (tag, assets) = release_tag_and_assets(&body).unwrap();
+        assert_eq!(tag, "2026.08.19");
+        assert_eq!(
+            pick_named_asset(&assets, "yt-dlp.exe").unwrap(),
+            "https://x/yt-dlp.exe"
+        );
+        assert!(pick_named_asset(&assets, "yt-dlp_macos").is_none());
+        let bad: serde_json::Value = serde_json::from_str(r#"{"tag_name":"","assets":[]}"#).unwrap();
+        assert!(release_tag_and_assets(&bad).is_none());
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn ffmpeg_win_asset_picker() {
+        let body: serde_json::Value = serde_json::from_str(
+            r#"{"tag_name":"latest","assets":[
+                {"name":"ffmpeg-n8.1.3-win64-gpl-8.1.zip","browser_download_url":"https://x/old.zip"},
+                {"name":"ffmpeg-n9.0-latest-win64-gpl-shared-9.0.zip","browser_download_url":"https://x/shared.zip"},
+                {"name":"ffmpeg-n9.0.2-12-gc867e13549-win64-gpl-9.0.zip","browser_download_url":"https://x/win.zip"},
+                {"name":"ffmpeg-n9.0.2-12-gc867e13549-win64-lgpl-9.0.zip","browser_download_url":"https://x/lgpl.zip"}]}"#,
+        )
+        .unwrap();
+        let (_, assets) = release_tag_and_assets(&body).unwrap();
+        let (name, url) = pick_newest_ffmpeg_win_asset(&assets).unwrap();
+        assert_eq!(url, "https://x/win.zip");
+        assert!(name.contains("n9.0.2"));
+    }
+
+    #[test]
+    fn zip_extract_finds_nested_exes() {
+        let dir = temp_tools_dir_unique("zipextract");
+        let zip_path = dir.join("bundle.zip");
+        {
+            let f = fs::File::create(&zip_path).unwrap();
+            let mut w = zip::ZipWriter::new(f);
+            let opts = zip::write::SimpleFileOptions::default();
+            w.start_file("ffmpeg-n7.1-win64-gpl/bin/ffmpeg.exe", opts).unwrap();
+            w.write_all(b"fake-ffmpeg").unwrap();
+            w.start_file("ffmpeg-n7.1-win64-gpl/bin/ffprobe.exe", opts).unwrap();
+            w.write_all(b"fake-ffprobe").unwrap();
+            w.start_file("ffmpeg-n7.1-win64-gpl/README.txt", opts).unwrap();
+            w.write_all(b"readme").unwrap();
+            w.finish().unwrap();
+        }
+        let out_dir = dir.join("out");
+        let got =
+            extract_wanted_from_zip(&zip_path, &out_dir, &["bin/ffmpeg.exe", "bin/ffprobe.exe"])
+                .unwrap();
+        assert_eq!(got.len(), 2);
+        let _ = fs::remove_dir_all(&dir);
     }
 
     #[test]
