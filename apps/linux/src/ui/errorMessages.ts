@@ -50,7 +50,10 @@ export function getFriendlyErrorMessage(error: unknown, fallback: string): strin
   if (lower.includes('yt-dlp') || lower.includes('runtime is not available') || lower.includes('ffprobe runtime is not available') || lower.includes('ffmpeg runtime is not available')) {
     return 'The downloader is getting ready. Please wait a moment and try again.';
   }
-  if (lower.includes('download failed') || lower.includes('unable to')) {
+  if (lower.includes('download failed') || lower.includes('download process could not')) {
+    return 'The download could not complete. Please check the link and try again.';
+  }
+  if (lower.includes('unable to')) {
     return 'The analysis could not complete. Please check the link and try again.';
   }
 

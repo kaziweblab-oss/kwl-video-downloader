@@ -27,6 +27,14 @@ import sys
 REPO = "kaziweblab-oss/kwl-video-downloader"
 
 
+def release_asset_name(local_name: str) -> str:
+    # softprops/action-gh-release sanitizes upload names: spaces become dots
+    # (e.g. `KWL Video Downloader_1.0.6_x64-setup.exe` is published as
+    # `KWL.Video.Downloader_1.0.6_x64-setup.exe`). The updater URL must use
+    # the PUBLISHED name or downloads 404.
+    return local_name.replace(" ", ".")
+
+
 def main() -> int:
     if len(sys.argv) != 2 or not sys.argv[1]:
         print("usage: generate-latest-json.py <tag>   (e.g. v1.0.4)", file=sys.stderr)
@@ -78,7 +86,7 @@ def main() -> int:
     if win and sig_of(win):
         platforms["windows-x86_64"] = {
             "signature": sig_of(win),
-            "url": f"https://github.com/{REPO}/releases/download/{tag}/{win}",
+            "url": f"https://github.com/{REPO}/releases/download/{tag}/{release_asset_name(win)}",
         }
     elif win:
         print(f"warn: {win} has no matching .sig, skipped", file=sys.stderr)
@@ -87,7 +95,7 @@ def main() -> int:
     if lin and sig_of(lin):
         platforms["linux-x86_64"] = {
             "signature": sig_of(lin),
-            "url": f"https://github.com/{REPO}/releases/download/{tag}/{lin}",
+            "url": f"https://github.com/{REPO}/releases/download/{tag}/{release_asset_name(lin)}",
         }
     elif lin:
         print(f"warn: {lin} has no matching .sig, skipped", file=sys.stderr)
@@ -101,7 +109,7 @@ def main() -> int:
                 continue
             platforms[key] = {
                 "signature": sig_of(mac),
-                "url": f"https://github.com/{REPO}/releases/download/{tag}/{mac}",
+                "url": f"https://github.com/{REPO}/releases/download/{tag}/{release_asset_name(mac)}",
             }
         elif mac:
             print(f"warn: {mac} has no matching .sig, skipped", file=sys.stderr)

@@ -38,6 +38,11 @@ describe('user-facing error messages (never raw technical text)', () => {
     expect(msg).not.toContain('UnhandledPromiseRejection');
   });
 
+  it('maps download failure to a download message (not analysis)', () => {
+    const msg = getFriendlyErrorMessage(new Error('Download failed'), 'fallback');
+    expect(msg).toBe('The download could not complete. Please check the link and try again.');
+  });
+
   it('prefers caller fallback only when it is a real message', () => {
     expect(getFriendlyErrorMessage(new Error('???'), '')).toBe(
       'Something went wrong. Please try again.',

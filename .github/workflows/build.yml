@@ -250,12 +250,12 @@ jobs:
                   buildConfig = true
               }
 
-              // Permanent APK name: kwl-video-downloader-{versionName}.apk (fallback 1.0.6)
+              // Permanent APK name: kwl-video-downloader-{versionName}.apk (fallback 1.0.7)
               applicationVariants.all {
                   val variant = this
                   outputs.all {
                       val output = this as com.android.build.gradle.internal.api.BaseVariantOutputImpl
-                      val ver = variant.versionName.ifEmpty { "1.0.6" }
+                      val ver = variant.versionName.ifEmpty { "1.0.7" }
                       output.outputFileName = "kwl-video-downloader-${ver}.apk"
                   }
               }
@@ -270,7 +270,7 @@ jobs:
                       import re
                       m = re.search(r"(buildFeatures\s*\{\s*buildConfig\s*=\s*true\s*\})", text)
                       if m:
-                          insert = m.group(1) + "\n\n    // Permanent APK name\n    applicationVariants.all {\n        val variant = this\n        outputs.all {\n            val output = this as com.android.build.gradle.internal.api.BaseVariantOutputImpl\n            val ver = variant.versionName.ifEmpty { \"1.0.6\" }\n            output.outputFileName = \"kwl-video-downloader-${ver}.apk\"\n        }\n    }"
+                          insert = m.group(1) + "\n\n    // Permanent APK name\n    applicationVariants.all {\n        val variant = this\n        outputs.all {\n            val output = this as com.android.build.gradle.internal.api.BaseVariantOutputImpl\n            val ver = variant.versionName.ifEmpty { \"1.0.7\" }\n            output.outputFileName = \"kwl-video-downloader-${ver}.apk\"\n        }\n    }"
                           text = text.replace(m.group(1), insert, 1)
                           fp.write_text(text, encoding="utf-8")
                           print(f"fallback patched {p}")

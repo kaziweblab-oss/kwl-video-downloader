@@ -1977,7 +1977,7 @@ version = "1.0.3"
 
 [[package]]
 name = "kwl-video-downloader"
-version = "1.0.6"
+version = "1.0.7"
 dependencies = [
  "reqwest 0.12.28",
  "serde",
@@ -1994,7 +1994,7 @@ dependencies = [
 
 [[package]]
 name = "kwl-video-downloader-android"
-version = "1.0.6"
+version = "1.0.7"
 dependencies = [
  "reqwest 0.12.28",
  "serde",
@@ -2011,7 +2011,7 @@ dependencies = [
 
 [[package]]
 name = "kwl-video-downloader-linux"
-version = "1.0.6"
+version = "1.0.7"
 dependencies = [
  "reqwest 0.12.28",
  "serde",
@@ -2028,7 +2028,7 @@ dependencies = [
 
 [[package]]
 name = "kwl-video-downloader-macos"
-version = "1.0.6"
+version = "1.0.7"
 dependencies = [
  "reqwest 0.12.28",
  "serde",

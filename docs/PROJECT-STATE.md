@@ -1,10 +1,10 @@
 # Project State
 
 CURRENT PHASE:
-v1.0.6 CI run — updater feed repair, tag pushed
+v1.0.7 updater URL fix — tag pending
 
 CURRENT TASK:
-Draft v1.0.6 → publish → installed v1.0.4 must offer one-click update.
+Push tag v1.0.7 → CI → publish → installed v1.0.5/1.0.6 must offer one-click update with WORKING download.
 
 COMPLETED:
 - Phase 0: Repository bootstrap
@@ -126,4 +126,4 @@ LAST UPDATED: 2026-09-27
 - Keep the verified runtime/downloader architecture intact and the typed Tauri bridge for native interactions
 
 ## Current version
-1.0.6
+1.0.7

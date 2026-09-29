@@ -4,6 +4,13 @@ All notable changes to KWL Video Downloader are documented in this file.
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.0.7] - 2026-09-29
+
+### Fixed
+
+- Updater download URLs use published asset names (spaces become dots on
+  upload — unquoted URLs 404d before this fix)
+
 ## [1.0.6] - 2026-09-29
 
 ### Fixed
