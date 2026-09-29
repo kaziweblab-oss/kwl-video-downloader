@@ -420,6 +420,7 @@ export type ReportInput = {
   message: string;
   email?: string | null;
   logs?: string | null;
+  link?: string | null;
 };
 
 export async function sendReport(report: ReportInput): Promise<void> {

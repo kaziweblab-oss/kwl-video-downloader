@@ -6,6 +6,7 @@ export type ReportType = 'error' | 'suggestion' | 'feedback';
 type ReportOptions = {
   includeInfo?: boolean;
   email?: string;
+  link?: string;
 };
 
 function collectDiagnosticInfo(): string {
@@ -41,6 +42,7 @@ export function useReport() {
         message: message.trim(),
         email: opts.email?.trim() ? opts.email.trim() : null,
         logs,
+        link: opts.link?.trim() ? opts.link.trim() : null,
       };
       await sendReport(payload);
     } finally {

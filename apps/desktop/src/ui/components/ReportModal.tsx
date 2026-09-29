@@ -23,6 +23,8 @@ export const ReportModal = ({ open, onClose }: ReportModalProps) => {
   const { send, sending } = useReport();
   const [reportType, setReportType] = useState<ReportType>('error');
   const [message, setMessage] = useState('');
+  const [link, setLink] = useState('');
+  const [linkError, setLinkError] = useState<string | null>(null);
   const [includeInfo, setIncludeInfo] = useState(true);
   const [email, setEmail] = useState('');
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
@@ -31,13 +33,26 @@ export const ReportModal = ({ open, onClose }: ReportModalProps) => {
     return null;
   }
 
-  const canSubmit = message.trim().length > 0 && !sending;
+  const isLinkValid = (v: string): boolean => {
+    const s = v.trim();
+    if (!s) return true;
+    const lower = s.toLowerCase();
+    return lower.startsWith('http://') || lower.startsWith('https://');
+  };
+
+  const canSubmit = message.trim().length > 0 && isLinkValid(link) && !sending;
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
+    if (!isLinkValid(link)) {
+      setLinkError(t.reportLinkInvalid);
+      return;
+    }
+    setLinkError(null);
     try {
-      await send(reportType, message, { includeInfo, email });
+      await send(reportType, message, { includeInfo, email, link });
       setMessage('');
+      setLink('');
       setEmail('');
       setToast({ message: t.reportSuccess, type: 'success' });
       window.setTimeout(onClose, 1700);
@@ -101,6 +116,20 @@ export const ReportModal = ({ open, onClose }: ReportModalProps) => {
                 placeholder={t.reportMessagePlaceholder}
                 className={`w-full resize-none rounded-xl border px-4 py-3 outline-none transition placeholder:text-slate-400 focus:border-sky-300/90 focus:shadow-[0_0_0_3px_rgba(56,189,248,0.18)] ${isDark ? 'border-slate-400/40 bg-slate-950/70 text-slate-50 placeholder:text-slate-500' : 'border-slate-300 bg-white text-slate-800'}`}
               />
+            </div>
+
+            <div>
+              <label className={`mb-2.5 block font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.reportLinkLabel}</label>
+              <input
+                type="url"
+                value={link}
+                onChange={(e) => { setLink(e.target.value); setLinkError(null); }}
+                placeholder={t.reportLinkPlaceholder}
+                className={`w-full rounded-xl border px-4 py-3 outline-none transition placeholder:text-slate-400 focus:border-sky-300/90 focus:shadow-[0_0_0_3px_rgba(56,189,248,0.18)] ${isDark ? 'border-slate-400/40 bg-slate-950/70 text-slate-50 placeholder:text-slate-500' : 'border-slate-300 bg-white text-slate-800'}`}
+              />
+              <p className={`mt-1.5 text-[11px] leading-4 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                {linkError ?? t.reportLinkHint}
+              </p>
             </div>
 
             <div>

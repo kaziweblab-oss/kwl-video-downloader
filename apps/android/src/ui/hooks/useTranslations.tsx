@@ -143,6 +143,10 @@ queueLabel: string;
     reportAttachInfo: string;
     reportEmail: string;
     reportEmailPlaceholder: string;
+    reportLinkLabel: string;
+    reportLinkPlaceholder: string;
+    reportLinkHint: string;
+    reportLinkInvalid: string;
     reportSend: string;
     reportSending: string;
     reportSuccess: string;
@@ -357,6 +361,10 @@ const translations: Record<Language, Translations> = {
     reportAttachInfo: 'Attach diagnostic info (app version, device, settings)',
     reportEmail: 'Email (optional)',
     reportEmailPlaceholder: 'you@example.com',
+    reportLinkLabel: 'Problem link (optional)',
+    reportLinkPlaceholder: 'https://… video link that has the problem',
+    reportLinkHint: 'Paste the link that fails, so we can reproduce it and fix it in an update.',
+    reportLinkInvalid: 'Link must start with http:// or https://',
     reportSend: 'Send Report',
     reportSending: 'Sending…',
     reportSuccess: 'Thank you for your report! 🙏',
@@ -569,6 +577,10 @@ const translations: Record<Language, Translations> = {
     reportAttachInfo: 'ডায়াগনস্টিক তথ্য সংযুক্ত করুন (অ্যাপ ভার্সন, ডিভাইস, সেটিংস)',
     reportEmail: 'ইমেইল (ঐচ্ছিক)',
     reportEmailPlaceholder: 'you@example.com',
+    reportLinkLabel: 'সমস্যার লিঙ্ক (ঐচ্ছিক)',
+    reportLinkPlaceholder: 'https://… সমস্যা হওয়া ভিডিও লিঙ্ক',
+    reportLinkHint: 'যে লিঙ্কে সমস্যা হয় সেটি দিন, যাতে আমরা পরীক্ষা করে আপডেটে ঠিক করতে পারি।',
+    reportLinkInvalid: 'লিঙ্ক http:// বা https:// দিয়ে শুরু হতে হবে',
     reportSend: 'রিপোর্ট পাঠান',
     reportSending: 'পাঠানো হচ্ছে…',
     reportSuccess: 'আপনার রিপোর্টের জন্য ধন্যবাদ! 🙏',

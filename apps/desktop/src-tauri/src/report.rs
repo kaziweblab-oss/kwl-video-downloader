@@ -19,6 +19,10 @@ pub struct ReportInput {
     pub email: Option<String>,
     #[serde(default)]
     pub logs: Option<String>,
+    /// Optional problem link (e.g. the video URL that failed), shown to
+    /// support staff so the issue can be reproduced and fixed.
+    #[serde(default)]
+    pub link: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -29,6 +33,8 @@ pub struct QueuedReport {
     pub email: Option<String>,
     #[serde(default)]
     pub logs: Option<String>,
+    #[serde(default)]
+    pub link: Option<String>,
     pub created_at: String,
     #[serde(default = "default_attempts")]
     pub attempts: u32,
@@ -41,6 +47,7 @@ fn default_attempts() -> u32 {
 const ALLOWED_TYPES: &[&str] = &["error", "suggestion", "feedback"];
 const REPORT_ENDPOINT: &str = "https://api.resend.com/emails";
 const MAX_MESSAGE_CHARS: usize = 8000;
+const MAX_LINK_CHARS: usize = 2000;
 
 static REPORTS_DIR: OnceLock<Option<PathBuf>> = OnceLock::new();
 
@@ -84,7 +91,118 @@ pub fn validate_report(report: &ReportInput) -> Result<(), String> {
     if message_chars > MAX_MESSAGE_CHARS {
         return Err(format!("Report message is too long (max {} characters)", MAX_MESSAGE_CHARS));
     }
+    if let Some(link) = trimmed(&report.link) {
+        let lower = link.to_lowercase();
+        if !(lower.starts_with("http://") || lower.starts_with("https://")) {
+            return Err("Problem link must be a valid http or https URL".to_string());
+        }
+        if link.chars().count() > MAX_LINK_CHARS {
+            return Err(format!("Problem link is too long (max {} characters)", MAX_LINK_CHARS));
+        }
+    }
     Ok(())
+}
+
+/// KWL-Nexus configuration: (base_url, api_key, app_id).
+/// Sources, in order: process environment (local dev/testing), then
+/// compile-time baked values (CI secrets), then the public default URL.
+/// The key never lives in the repository.
+fn nexus_config() -> Option<(String, String, String)> {
+    let base_url = std::env::var("KWL_NEXUS_URL")
+        .ok()
+        .filter(|s| !s.trim().is_empty())
+        .or_else(|| option_env!("KWL_NEXUS_URL").map(String::from))
+        .unwrap_or_else(|| "https://kwl-nexus.onrender.com".to_string());
+    let api_key = std::env::var("KWL_NEXUS_API_KEY")
+        .ok()
+        .filter(|s| !s.trim().is_empty())
+        .or_else(|| option_env!("KWL_NEXUS_API_KEY").map(String::from))?;
+    let app_id = std::env::var("KWL_NEXUS_APP_ID")
+        .ok()
+        .filter(|s| !s.trim().is_empty())
+        .or_else(|| option_env!("KWL_NEXUS_APP_ID").map(String::from))?;
+    let base_url = base_url.trim().trim_end_matches('/').to_string();
+    if base_url.is_empty() || api_key.trim().is_empty() || app_id.trim().is_empty() {
+        return None;
+    }
+    Some((base_url, api_key.trim().to_string(), app_id.trim().to_string()))
+}
+
+fn nexus_report_type(report_type: &str) -> &'static str {
+    match report_type {
+        "error" => "bug_report",
+        "suggestion" => "suggestion",
+        _ => "feature_request",
+    }
+}
+
+/// Nexus requires a 3–160 char title; derive it from the message.
+fn nexus_title(report: &ReportInput) -> String {
+    let first_line = report
+        .message
+        .lines()
+        .map(str::trim)
+        .find(|l| !l.is_empty())
+        .unwrap_or("App report");
+    let short: String = first_line.chars().take(120).collect();
+    let title = format!("[{}] {}", report.report_type, short);
+    let clipped: String = title.chars().take(160).collect();
+    if clipped.chars().count() >= 3 {
+        clipped
+    } else {
+        format!("[{}] app report", report.report_type)
+    }
+}
+
+fn truncate_chars(s: &str, max: usize) -> String {
+    if s.chars().count() <= max {
+        s.to_string()
+    } else {
+        s.chars().take(max).collect()
+    }
+}
+
+/// Nexus description: message + problem link (no separate link field exists).
+fn nexus_description(report: &ReportInput) -> String {
+    let mut desc = report.message.trim().to_string();
+    if let Some(link) = trimmed(&report.link) {
+        desc.push_str("\n\nProblem link: ");
+        desc.push_str(&link);
+    }
+    truncate_chars(&desc, 4500)
+}
+
+fn send_via_nexus(report: &ReportInput) -> Result<(), String> {
+    let (base_url, api_key, app_id) = nexus_config()
+        .ok_or_else(|| "nexus not configured (KWL_NEXUS_API_KEY/KWL_NEXUS_APP_ID)".to_string())?;
+    let mut payload = serde_json::json!({
+        "appId": app_id,
+        "type": nexus_report_type(&report.report_type),
+        "title": nexus_title(report),
+        "description": nexus_description(report),
+    });
+    if let Some(email) = trimmed(&report.email) {
+        payload["contactEmail"] = serde_json::Value::String(email);
+    }
+
+    let client = reqwest::blocking::Client::builder()
+        .timeout(std::time::Duration::from_secs(15))
+        .build()
+        .map_err(|e| format!("nexus client error: {e}"))?;
+    let url = format!("{base_url}/api/feedback");
+    let response = client
+        .post(&url)
+        .header("x-api-key", &api_key)
+        .header("Accept", "application/json")
+        .json(&payload)
+        .send()
+        .map_err(|e| format!("nexus send failed: {e}"))?;
+    let status = response.status();
+    if status.is_success() {
+        Ok(())
+    } else {
+        Err(format!("nexus returned {status}"))
+    }
 }
 
 /// Email configuration read from the environment, `None` when disabled.
@@ -177,6 +295,7 @@ fn queue_report(input: &ReportInput) {
         message: input.message.trim().to_string(),
         email: trimmed(&input.email),
         logs: trimmed(&input.logs),
+        link: trimmed(&input.link),
         created_at: now_iso(),
         attempts: 0,
     });
@@ -187,11 +306,25 @@ fn queue_report(input: &ReportInput) {
 
 /// Main entry point used by the Tauri command.
 ///
-/// Tries the email API first; on failure - or when email is not configured -
-/// the report is persisted locally and retried at the next launch, so the user
-/// always gets a successful delivery confirmation.
+/// Delivery order: KWL-Nexus first (app → Nexus → mail), then the direct
+/// email API, then the local queue retried at next launch — so the user
+/// always gets a successful delivery confirmation and nothing is lost.
 pub fn send_report(report: ReportInput) -> Result<(), String> {
     validate_report(&report)?;
+
+    if nexus_config().is_some() {
+        match send_via_nexus(&report) {
+            Ok(()) => {
+                eprintln!("[REPORT] {} report delivered via nexus", report.report_type);
+                return Ok(());
+            }
+            Err(err) => {
+                eprintln!("[REPORT] nexus failed; trying fallback: {err}");
+            }
+        }
+    } else {
+        eprintln!("[REPORT] nexus not configured; trying fallback");
+    }
 
     if let Some(config) = email_config() {
         match send_via_email(&config, &report) {
@@ -211,15 +344,16 @@ pub fn send_report(report: ReportInput) -> Result<(), String> {
     Ok(())
 }
 
-/// Flush locally queued reports through email. Runs once at startup.
+/// Flush locally queued reports (Nexus first, then email). Runs once at startup.
 pub fn flush_pending_reports() {
     let queue = read_queue();
     if queue.is_empty() {
         return;
     }
 
-    let Some(config) = email_config() else {
-        eprintln!("[REPORT] {} queued report(s) await email configuration", queue.len());
+    let use_nexus = nexus_config().is_some();
+    if !use_nexus && email_config().is_none() {
+        eprintln!("[REPORT] {} queued report(s) await delivery configuration", queue.len());
         return;
     };
 
@@ -230,17 +364,29 @@ pub fn flush_pending_reports() {
             message: entry.message.clone(),
             email: entry.email.clone(),
             logs: entry.logs.clone(),
+            link: entry.link.clone(),
         };
-        match send_via_email(&config, &input) {
-            Ok(()) => {
-                eprintln!("[REPORT] flushed queued {} report from {}", entry.report_type, entry.created_at);
+        let mut delivered = false;
+        if use_nexus {
+            match send_via_nexus(&input) {
+                Ok(()) => delivered = true,
+                Err(err) => eprintln!("[REPORT] queued nexus retry failed: {err}"),
             }
-            Err(err) => {
-                eprintln!("[REPORT] queued report retry failed: {err}");
-                let mut retried = entry;
-                retried.attempts += 1;
-                remaining.push(retried);
+        }
+        if !delivered {
+            if let Some(config) = email_config() {
+                match send_via_email(&config, &input) {
+                    Ok(()) => delivered = true,
+                    Err(err) => eprintln!("[REPORT] queued email retry failed: {err}"),
+                }
             }
+        }
+        if delivered {
+            eprintln!("[REPORT] flushed queued {} report from {}", entry.report_type, entry.created_at);
+        } else {
+            let mut retried = entry;
+            retried.attempts += 1;
+            remaining.push(retried);
         }
     }
     write_queue(&remaining);
@@ -300,6 +446,17 @@ mod tests {
             message: message.to_string(),
             email: None,
             logs: None,
+            link: None,
+        }
+    }
+
+    fn fixture_link(report_type: &str, message: &str, link: &str) -> ReportInput {
+        ReportInput {
+            report_type: report_type.to_string(),
+            message: message.to_string(),
+            email: None,
+            logs: None,
+            link: Some(link.to_string()),
         }
     }
 
@@ -311,6 +468,50 @@ mod tests {
         assert!(super::validate_report(&fixture("spam", "Message")).is_err());
         assert!(super::validate_report(&fixture("error", "   ")).is_err());
         assert!(super::validate_report(&fixture("error", "")).is_err());
+    }
+
+    #[test]
+    fn validates_problem_link() {
+        assert_eq!(
+            super::validate_report(&fixture_link("error", "Video fails", "https://youtu.be/abc123")),
+            Ok(())
+        );
+        assert_eq!(
+            super::validate_report(&fixture_link("error", "Video fails", "http://example.com/v?q=1")),
+            Ok(())
+        );
+        // missing link stays valid (optional field)
+        assert_eq!(super::validate_report(&fixture("error", "Video fails")), Ok(()));
+        // non-URL rejected
+        assert!(super::validate_report(&fixture_link("error", "Video fails", "not a link")).is_err());
+        assert!(super::validate_report(&fixture_link("error", "Video fails", "ftp://files/x")).is_err());
+        // overlong link rejected
+        let long = format!("https://example.com/{}", "a".repeat(1990));
+        assert!(super::validate_report(&fixture_link("error", "Video fails", &long)).is_err());
+    }
+
+    #[test]
+    fn nexus_type_mapping_and_title_rules() {
+        assert_eq!(super::nexus_report_type("error"), "bug_report");
+        assert_eq!(super::nexus_report_type("suggestion"), "suggestion");
+        assert_eq!(super::nexus_report_type("feedback"), "feature_request");
+        assert_eq!(super::nexus_report_type("anything-else"), "feature_request");
+        let r = fixture("error", "First line here\nSecond line here");
+        let title = super::nexus_title(&r);
+        assert!(title.starts_with("[error] First line here"));
+        assert!(title.chars().count() <= 160);
+        assert!(title.chars().count() >= 3);
+    }
+
+    #[test]
+    fn nexus_description_carries_link_within_limit() {
+        let r = fixture_link("error", "Video fails every time", "https://youtu.be/abc123");
+        let desc = super::nexus_description(&r);
+        assert!(desc.contains("Video fails every time"));
+        assert!(desc.contains("Problem link: https://youtu.be/abc123"));
+        assert!(desc.chars().count() <= 4500);
+        let big = fixture("error", &"m".repeat(8000));
+        assert!(super::nexus_description(&big).chars().count() <= 4500);
     }
 
     #[test]
