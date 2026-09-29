@@ -8,7 +8,20 @@ This file is the conversational memory layer for coding agents. Read it first, t
 - Append a new "Last session" entry (move the old one into "Earlier sessions") at the end of meaningful work.
 - Never delete accepted decisions; they are recorded in `DECISION-LOG.md`.
 
-## Last session: 2026-09-28 (tool auto-update real + honest analyze errors)
+## Last session: 2026-09-28 (v1.0.5 batch — merge fix, messages, i18n, splash)
+
+### What we did
+
+- **Merge root cause PROVEN + fixed:** MP4 DASH streams got no merge flag and yt-dlp never learned the managed ffmpeg path (PATH-less machines) → orphaned `.f*`, no final file, systematic "failed validation". Now: mp4 merged, `--ffmpeg-location` managed dir, output tracker captures `Destination:`/`Merging formats into` lines (both threads), validate logs path+reason. Live proof: app-exact args on public video → single merged 78MB mp4, parts deleted, ffprobe duration ok.
+- **Messages:** central `errorMessages.ts` (raw never renders; updater/invalid-JSON/signature mapped); Queue/History friendly; dev-jargon literals replaced (idle hint, About stack names, aria).
+- **i18n:** ~55 EN/BN keys, all chrome keyed, parity test EN==BN==interface.
+- **Boot:** setup never blocks window (flush threaded); KWL-branded splash (logo, Made by Kazi Web Lab) until ready, 4s cap.
+- **Gates:** cargo 87 x4, tsc x4, vite x4, vitest 64. Pushed `3c48eeb`. No tag (user drives releases).
+- **Pending user tests:** in-app download click (mechanics proven), v1.0.4 toast e2e after publish.
+
+## Earlier sessions
+
+### 2026-09-28 (tool auto-update real + honest analyze errors)
 
 ### What we did
 
