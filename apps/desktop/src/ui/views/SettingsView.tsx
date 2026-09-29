@@ -30,7 +30,6 @@ function ThemeSwitcher() {
           </button>
         ))}
       </div>
-      <span className={`text-xs break-words whitespace-normal ${resolvedTheme === 'dark' ? 'text-slate-500' : 'text-slate-500'}`}>{t.themeActivePrefix} {resolvedTheme === 'dark' ? t.themeDark : t.themeLight} {theme === 'system' ? t.themeFollowingOS : ''}</span>
     </div>
   );
 }
@@ -56,7 +55,7 @@ export const SettingsView = ({ outputDirectory = '', defaultOutputFolder = '', o
   const [pendingUpdate, setPendingUpdate] = useState<PendingUpdate>(null);
   const [updateError, setUpdateError] = useState<string | null>(null);
   const [updateVersion, setUpdateVersion] = useState<string | null>(null);
-  const [currentVersion, setCurrentVersion] = useState('1.0.4');
+  const [currentVersion, setCurrentVersion] = useState('1.0.5');
 
   // Show current app version and auto-detected update from App.tsx
   useEffect(() => {

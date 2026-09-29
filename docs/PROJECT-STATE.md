@@ -1,10 +1,10 @@
 # Project State
 
 CURRENT PHASE:
-v1.0.4 updater e2e test — version bumped everywhere, tag v1.0.4 pending push
+v1.0.5 release — merge repair + messages + i18n + splash, tag pending
 
 CURRENT TASK:
-Push tag v1.0.4 → CI builds → publish → installed v1.0.3 must offer one-click update to v1.0.4.
+Push tag v1.0.5 → CI → publish → installed v1.0.4 offers one-click update.
 
 COMPLETED:
 - Phase 0: Repository bootstrap
@@ -126,4 +126,4 @@ LAST UPDATED: 2026-09-27
 - Keep the verified runtime/downloader architecture intact and the typed Tauri bridge for native interactions
 
 ## Current version
-1.0.4
+1.0.5

@@ -4,6 +4,15 @@ All notable changes to KWL Video Downloader are documented in this file.
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.0.5] - 2026-09-29
+
+### Fixed
+
+- Video/audio merge repair: MP4 merged via managed FFmpeg, final file
+  validated, leftover parts eliminated
+- No raw technical text in UI; full English/Bangla coverage (~55 keys)
+- Branded KWL boot splash; startup never blocks the window
+
 ## [1.0.4] - 2026-09-28
 
 ### Fixed
