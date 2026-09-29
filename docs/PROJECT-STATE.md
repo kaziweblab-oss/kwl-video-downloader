@@ -1,10 +1,10 @@
 # Project State
 
 CURRENT PHASE:
-v1.0.6 updater feed repair — tag pending
+v1.0.6 CI run — updater feed repair, tag pushed
 
 CURRENT TASK:
-Push tag v1.0.6 → CI → publish → installed v1.0.4 must offer one-click update.
+Draft v1.0.6 → publish → installed v1.0.4 must offer one-click update.
 
 COMPLETED:
 - Phase 0: Repository bootstrap
