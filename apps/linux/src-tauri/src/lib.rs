@@ -982,6 +982,13 @@ fn extract_output_path(line: &str) -> Option<String> {
     None
 }
 
+/// Max base filename length for downloads. Video titles (especially with
+/// hashtags) can exceed the Windows MAX_PATH limit, making file creation
+/// fail with "No such file or directory". yt-dlp trims `%(title)s` to this.
+fn trim_filenames_limit() -> &'static str {
+    "120"
+}
+
 fn build_video_format_selector(container: &str, height: Option<u64>, width: Option<u64>, fps: Option<u64>) -> String {
     // For QCIF 176x144, width filter is too strict (would exclude 256x144) — ignore width for that specific case and allow any 144p then transcode/scale
     let effective_width = if width == Some(176) && height == Some(144) { None } else { width };
@@ -1297,6 +1304,9 @@ pub fn start_download_impl(request: DownloadRequestInput) -> Result<DownloadJobR
         .arg(format!("temp:{}", temp_directory.to_string_lossy()))
         .arg("-o")
         .arg(output_path.join("%(title)s.%(ext)s"));
+    command
+        .arg("--trim-filenames")
+        .arg(trim_filenames_limit());
 
     match request.media_type.to_ascii_lowercase().as_str() {
         "audio" => {
@@ -1956,6 +1966,17 @@ mod tests {
     use super::{build_media_analysis_payload, cleanup_temp_directory, create_temp_directory, validate_output_file};
     use super::classify_analyze_failure;
     use super::extract_output_path;
+    use super::trim_filenames_limit;
+
+    #[test]
+    fn trim_limit_keeps_paths_short() {
+        // dir (~60) + trimmed title (120) + format suffix (~30) must stay
+        // well under the Windows MAX_PATH limit of 260 characters.
+        let limit: usize = trim_filenames_limit().parse().unwrap();
+        assert!(limit <= 150);
+        let worst = 60 + limit + 30;
+        assert!(worst < 260);
+    }
 
     #[test]
     fn extract_output_path_shapes() {

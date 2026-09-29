@@ -1,7 +1,7 @@
 # Project State
 
 CURRENT PHASE:
-v1.0.7 updater URL fix — tag pending
+v1.0.7 updater URL fix + filename trim — tag pending (moved, includes trim)
 
 CURRENT TASK:
 Push tag v1.0.7 → CI → publish → installed v1.0.5/1.0.6 must offer one-click update with WORKING download.
