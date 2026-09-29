@@ -36,14 +36,6 @@ export interface ConfigurationProps {
   selectedSize?: SelectedSize | null;
 }
 
-const STEP_LABELS: Record<WizardStepId, string> = {
-  media: 'MEDIA',
-  type: 'TYPE',
-  format: 'FORMAT',
-  quality: 'QUALITY',
-  output: 'OUTPUT',
-};
-
 export const Configuration = ({
   mediaSelected,
   mediaType,
@@ -76,6 +68,13 @@ export const Configuration = ({
   const t = useTranslations();
   const { resolvedTheme } = useSettings();
   const isDark = resolvedTheme === 'dark';
+  const STEP_LABELS: Record<WizardStepId, string> = {
+    media: t.stepMedia,
+    type: t.stepType,
+    format: t.stepFormat,
+    quality: t.stepQuality,
+    output: t.stepOutput,
+  };
 
   const isStepCompletedByData = (step: WizardStepId): boolean => {
     switch (step) {
@@ -114,7 +113,7 @@ export const Configuration = ({
         return (
           <div>
             <p className={`text-sm font-bold mb-3 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.mediaType}</p>
-            <div className="flex flex-nowrap gap-3" role="tablist" aria-label="Media type selector">
+            <div className="flex flex-nowrap gap-3" role="tablist" aria-label={t.mediaType}>
               {(['Video', 'Audio'] as MediaType[]).map((option) => (
                 <OptionCard key={option} selected={mediaTypeChosen && mediaType === option} onClick={() => onMediaTypePick(option)}>
                   {option === 'Video' ? t.video : t.audio}
@@ -233,7 +232,7 @@ export const Configuration = ({
             <p className={`text-sm font-bold mb-3 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.outputFolder}</p>
             <div className="flex items-end gap-3 max-[760px]:flex-col max-[760px]:items-stretch">
               <div className="flex-1">
-                <input value={outputDirectory} onChange={(e) => onOutputDirectoryChange(e.target.value)} aria-label="Output folder" className={`w-full min-w-[200px] flex-1 rounded-xl border px-4 py-[0.9rem] outline-none transition focus:border-sky-300/90 focus:shadow-[0_0_0_3px_rgba(56,189,248,0.18)] ${isDark ? 'border-slate-400/40 bg-slate-900/80 text-slate-50' : 'border-slate-300 bg-white text-slate-800'}`} />
+                <input value={outputDirectory} onChange={(e) => onOutputDirectoryChange(e.target.value)} aria-label={t.outputFolder} className={`w-full min-w-[200px] flex-1 rounded-xl border px-4 py-[0.9rem] outline-none transition focus:border-sky-300/90 focus:shadow-[0_0_0_3px_rgba(56,189,248,0.18)] ${isDark ? 'border-slate-400/40 bg-slate-900/80 text-slate-50' : 'border-slate-300 bg-white text-slate-800'}`} />
               </div>
               <button type="button" onClick={onBrowse} aria-label={t.browse} title={t.browse} className={`shrink-0 rounded-xl border px-5 py-[0.9rem] text-sm font-bold transition ${isDark ? 'border-slate-400/30 bg-slate-800 text-slate-200 hover:border-sky-300/40 hover:bg-slate-700 hover:text-slate-50' : 'border-slate-300 bg-white text-slate-700 hover:border-sky-300 hover:bg-slate-50'}`}>{t.browse}</button>
             </div>

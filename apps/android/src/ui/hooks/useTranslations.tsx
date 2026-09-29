@@ -159,6 +159,61 @@ queueLabel: string;
     gitHub: string;
     reportIssue: string;
     privacyPolicy: string;
+    navVersions: string;
+    sectionGeneral: string;
+    sectionAdvanced: string;
+    sectionUpdates: string;
+    languageLabel: string;
+    themeSystem: string;
+    themeLight: string;
+    themeDark: string;
+    themeActivePrefix: string;
+    themeFollowingOS: string;
+    defaultBadge: string;
+    autoLaunchTitle: string;
+    autoLaunchDesc: string;
+    autoUpdateTitle: string;
+    autoUpdateDesc: string;
+    currentVersionLabel: string;
+    updateChecking: string;
+    updateDownloading: string;
+    updateDownloadInstall: string;
+    updateUpToDate: string;
+    updateAvailableShort: string;
+    updateCheckFailed: string;
+    updateInstalling: string;
+    updateNewDetected: string;
+    updateIdleHint: string;
+    updateAvailableLong: string;
+    updateNoAutoCloseHint: string;
+    updateCheckFailedGeneric: string;
+    updateVerifyFailed: string;
+    updateBrowserOnly: string;
+    queueTitle: string;
+    downloadPending: string;
+    pendingCount: string;
+    pauseAll: string;
+    resumeAll: string;
+    cancelAll: string;
+    clearQueue: string;
+    downloadedSuffix: string;
+    downloadingNow: string;
+    clearHistory: string;
+    stepMedia: string;
+    stepType: string;
+    stepFormat: string;
+    stepQuality: string;
+    stepOutput: string;
+    videosAtOnceOne: string;
+    videosAtOnceOther: string;
+    professionalTag: string;
+    parallelCount: string;
+    closeLabel: string;
+    okButton: string;
+    aboutLogoAlt: string;
+    toolCheckNotice: string;
+    bootLoading: string;
+    bootTagline: string;
 };
 
 const translations: Record<Language, Translations> = {
@@ -306,18 +361,73 @@ const translations: Record<Language, Translations> = {
     reportSending: 'Sending…',
     reportSuccess: 'Thank you for your report! 🙏',
     reportFailed: 'Failed to send report. Please try again.',
-    aboutDescription: 'A modern video downloader built with Tauri 2, React, TypeScript, and Rust. Supports multi-format downloads, real-time progress, pause/resume, and history management.',
+    aboutDescription: 'A simple, fast video and audio downloader. Analyze links, build a queue, and keep your download history — free and offline-first.',
     aboutPlatform: 'Windows x64',
     aboutVersion: 'Version',
     aboutClosedSource: 'Closed source — All rights reserved. Source code is not public.',
     aboutPrivacyPolicy: 'Privacy Policy',
     aboutProductOf: 'A Product of Kazi Web Lab (KWL)',
     aboutPrivacyTitle: 'Privacy Policy',
-    aboutPrivacyContent: 'KWL Video Downloader is closed source. Your downloads are stored locally on your device. We do not collect personal data, browsing history, or download content. Network is used only to fetch video info (yt-dlp) and to check for app updates (GitHub Releases). No analytics or tracking. You can use the app offline for History and Settings; online is required only for analyzing/downloading new links.',
+    aboutPrivacyContent: 'KWL Video Downloader is closed source. Your downloads stay on your device. We do not collect personal data, browsing history, or file contents. Internet is used only to read video info and to check for app updates. No analytics or tracking. History and Settings work offline; only analyzing or downloading new links needs internet.',
     aboutAllRightsReserved: '© 2026 KWL. All rights reserved.',
     gitHub: 'GitHub',
     reportIssue: 'Report Issue',
     privacyPolicy: 'Privacy Policy',
+    navVersions: 'Versions',
+    sectionGeneral: 'General',
+    sectionAdvanced: 'Advanced',
+    sectionUpdates: 'Updates',
+    languageLabel: 'Language',
+    themeSystem: 'System',
+    themeLight: 'Light',
+    themeDark: 'Dark',
+    themeActivePrefix: 'Active:',
+    themeFollowingOS: '(following OS)',
+    defaultBadge: 'Default',
+    autoLaunchTitle: 'Start app when Windows signs in',
+    autoLaunchDesc: 'When active, the app opens automatically after Windows login.',
+    autoUpdateTitle: 'Auto-check on startup',
+    autoUpdateDesc: 'Shows notification when update found — install manually from here',
+    currentVersionLabel: 'Current version',
+    updateChecking: 'Checking…',
+    updateDownloading: 'Downloading…',
+    updateDownloadInstall: '⬇ Download and Install {version}',
+    updateUpToDate: '✓ Already on latest version',
+    updateAvailableShort: 'Update {version} available — click to install',
+    updateCheckFailed: 'Check failed',
+    updateInstalling: 'Installing — app will restart…',
+    updateNewDetected: 'New {version} detected — Check Now to install',
+    updateIdleHint: 'New versions appear here when available',
+    updateAvailableLong: '{version} available — will download and restart',
+    updateNoAutoCloseHint: 'Window will not close by itself — press Update to install',
+    updateCheckFailedGeneric: 'Could not check for updates. Please try again later.',
+    updateVerifyFailed: 'Update verification failed — release signature mismatch.',
+    updateBrowserOnly: 'Updater only works in the desktop app.',
+    queueTitle: 'Queue',
+    downloadPending: 'Download pending',
+    pendingCount: '{count} pending',
+    pauseAll: 'Pause All',
+    resumeAll: 'Resume All',
+    cancelAll: 'Cancel All',
+    clearQueue: 'Clear Queue',
+    downloadedSuffix: 'downloaded',
+    downloadingNow: 'Downloading...',
+    clearHistory: 'Clear history',
+    stepMedia: 'MEDIA',
+    stepType: 'TYPE',
+    stepFormat: 'FORMAT',
+    stepQuality: 'QUALITY',
+    stepOutput: 'OUTPUT',
+    videosAtOnceOne: '{count} video at once',
+    videosAtOnceOther: '{count} videos at once',
+    professionalTag: '· Professional',
+    parallelCount: '{count} parallel',
+    closeLabel: 'Close',
+    okButton: 'OK',
+    aboutLogoAlt: 'KWL Video Downloader Logo',
+    toolCheckNotice: 'A background component needs attention — the app keeps working with available tools.',
+    bootLoading: 'Starting…',
+    bootTagline: 'Made by Kazi Web Lab',
   },
   bn: {
     brand: 'KWL ভিডিও ডাউনলোডার',
@@ -463,18 +573,73 @@ const translations: Record<Language, Translations> = {
     reportSending: 'পাঠানো হচ্ছে…',
     reportSuccess: 'আপনার রিপোর্টের জন্য ধন্যবাদ! 🙏',
     reportFailed: 'রিপোর্ট পাঠানো ব্যর্থ হয়েছে। আবার চেষ্টা করুন।',
-    aboutDescription: 'Tauri 2, React, TypeScript এবং Rust দিয়ে তৈরি একটি আধুনিক ভিডিও ডাউনলোডার। মাল্টি-ফরম্যাট ডাউনলোড, রিয়েল-টাইম প্রগ্রেস, বিরতি/পুনরায় শুরু এবং ইতিহাস ব্যবস্থাপনা সমর্থন করে।',
+    aboutDescription: 'সহজ ও দ্রুত ভিডিও-অডিও ডাউনলোডার। লিঙ্ক বিশ্লেষণ করুন, সারি বানান, ডাউনলোডের ইতিহাস রাখুন — ফ্রি ও অফলাইন-ফার্স্ট।',
     aboutPlatform: 'Windows x64',
     aboutVersion: 'ভার্সন',
     aboutClosedSource: 'ক্লোজড সোর্স — সর্বস্বত্ব সংরক্ষিত। সোর্স কোড উন্মুক্ত নয়।',
     aboutPrivacyPolicy: 'গোপনীয়তা নীতি',
     aboutProductOf: 'Kazi Web Lab (KWL) এর একটি পণ্য',
     aboutPrivacyTitle: 'গোপনীয়তা নীতি',
-    aboutPrivacyContent: 'KWL Video Downloader ক্লোজড সোর্স। আপনার ডাউনলোডগুলি আপনার ডিভাইসে স্থানীয়ভাবে সংরক্ষিত হয়। আমরা ব্যক্তিগত ডেটা, ব্রাউজিং ইতিহাস বা ডাউনলোড কন্টেন্ট সংগ্রহ করি না। নেটওয়ার্ক শুধুমাত্র ভিডিও তথ্য আনতে (yt-dlp) এবং অ্যাপ আপডেট চেক করতে (GitHub Releases) ব্যবহৃত হয়। কোনো অ্যানালিটিক্স বা ট্র্যাকিং নেই। History এবং Settings অফলাইনে ব্যবহার করা যায়; শুধুমাত্র নতুন লিঙ্ক বিশ্লেষণ/ডাউনলোড করতে অনলাইন প্রয়োজন।',
+    aboutPrivacyContent: 'KWL Video Downloader ক্লোজড সোর্স। আপনার ডাউনলোড আপনার ডিভাইসেই থাকে। আমরা ব্যক্তিগত ডেটা, ব্রাউজিং ইতিহাস বা ফাইলের ভেতরের তথ্য সংগ্রহ করি না। ইন্টারনেট শুধু ভিডিওর তথ্য পড়তে ও অ্যাপ আপডেট চেক করতে ব্যবহৃত হয়। কোনো অ্যানালিটিক্স বা ট্র্যাকিং নেই। History ও Settings অফলাইনে চলে; শুধু নতুন লিঙ্ক বিশ্লেষণ বা ডাউনলোডে ইন্টারনেট লাগে।',
     aboutAllRightsReserved: '© ২০২৬ KWL। সর্বস্বত্ব সংরক্ষিত।',
     gitHub: 'গিটহাব',
     reportIssue: 'সমস্যা রিপোর্ট করুন',
     privacyPolicy: 'গোপনীয়তা নীতি',
+    navVersions: 'সংস্করণ',
+    sectionGeneral: 'সাধারণ',
+    sectionAdvanced: 'উন্নত',
+    sectionUpdates: 'আপডেট',
+    languageLabel: 'ভাষা',
+    themeSystem: 'সিস্টেম',
+    themeLight: 'লাইট',
+    themeDark: 'ডার্ক',
+    themeActivePrefix: 'সক্রিয়:',
+    themeFollowingOS: '(OS অনুযায়ী)',
+    defaultBadge: 'ডিফল্ট',
+    autoLaunchTitle: 'উইন্ডোজ চালু হলে অ্যাপ খুলবে',
+    autoLaunchDesc: 'সক্রিয় থাকলে উইন্ডোজ লগইনের পর অ্যাপ নিজে থেকে খুলবে।',
+    autoUpdateTitle: 'চালু হলে অটো-চেক',
+    autoUpdateDesc: 'আপডেট পাওয়া গেলে নোটিফিকেশন দেখাবে — এখান থেকে ম্যানুয়ালি ইনস্টল করুন',
+    currentVersionLabel: 'বর্তমান ভার্সন',
+    updateChecking: 'চেক হচ্ছে…',
+    updateDownloading: 'ডাউনলোড হচ্ছে…',
+    updateDownloadInstall: '⬇ ডাউনলোড ও ইনস্টল {version}',
+    updateUpToDate: '✓ সর্বশেষ ভার্সন আছে',
+    updateAvailableShort: 'আপডেট {version} এসেছে — ইনস্টল করতে ক্লিক করুন',
+    updateCheckFailed: 'চেক ব্যর্থ হয়েছে',
+    updateInstalling: 'ইনস্টল হচ্ছে — অ্যাপ রিস্টার্ট হবে…',
+    updateNewDetected: 'নতুন {version} পাওয়া গেছে — ইনস্টল করতে এখনই চেক করুন',
+    updateIdleHint: 'নতুন ভার্সন এলে এখানে দেখাবে',
+    updateAvailableLong: '{version} এসেছে — ডাউনলোড করে রিস্টার্ট হবে',
+    updateNoAutoCloseHint: 'উইন্ডো নিজে বন্ধ হবে না — ইনস্টল করতে Update চাপুন',
+    updateCheckFailedGeneric: 'আপডেট চেক করা যায়নি। পরে আবার চেষ্টা করুন।',
+    updateVerifyFailed: 'আপডেট ভেরিফিকেশন ব্যর্থ — রিলিজ ফাইল যাচাই করা যায়নি।',
+    updateBrowserOnly: 'আপডেটার শুধু ডেস্কটপ অ্যাপে কাজ করে।',
+    queueTitle: 'সারি',
+    downloadPending: 'ডাউনলোড বাকি',
+    pendingCount: '{count}টি বাকি',
+    pauseAll: 'সব থামান',
+    resumeAll: 'সব চালু করুন',
+    cancelAll: 'সব বাতিল',
+    clearQueue: 'সারি মুছুন',
+    downloadedSuffix: 'ডাউনলোড হয়েছে',
+    downloadingNow: 'ডাউনলোড হচ্ছে…',
+    clearHistory: 'ইতিহাস মুছুন',
+    stepMedia: 'মিডিয়া',
+    stepType: 'টাইপ',
+    stepFormat: 'ফরম্যাট',
+    stepQuality: 'কোয়ালিটি',
+    stepOutput: 'আউটপুট',
+    videosAtOnceOne: '{count}টি ভিডিও একসাথে',
+    videosAtOnceOther: '{count}টি ভিডিও একসাথে',
+    professionalTag: '· প্রফেশনাল',
+    parallelCount: '{count}টি একসাথে',
+    closeLabel: 'বন্ধ করুন',
+    okButton: 'ঠিক আছে',
+    aboutLogoAlt: 'KWL ভিডিও ডাউনলোডার লোগো',
+    toolCheckNotice: 'একটি ব্যাকগ্রাউন্ড অংশে নজর দেওয়া দরকার — অ্যাপ স্বাভাবিকভাবে চলবে।',
+    bootLoading: 'চালু হচ্ছে…',
+    bootTagline: 'Made by Kazi Web Lab',
   },
 };
 

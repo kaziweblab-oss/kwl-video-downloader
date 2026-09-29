@@ -13,7 +13,7 @@ export const AdminVersionsView = ({ appId = 'kwl-video-downloader' }: { appId?: 
   const isDark = resolvedTheme === 'dark';
   const { language } = useLanguage();
   const t = useTranslations();
-  const [currentVersion, setCurrentVersion] = useState('1.0.2');
+  const [currentVersion, setCurrentVersion] = useState('1.0.4');
   const [updateState, setUpdateState] = useState<UpdateState>('idle');
   const [pendingUpdate, setPendingUpdate] = useState<PendingUpdate>(null);
   const [updateVersion, setUpdateVersion] = useState<string | null>(null);
@@ -71,7 +71,7 @@ export const AdminVersionsView = ({ appId = 'kwl-video-downloader' }: { appId?: 
       }
       if (!('__TAURI_INTERNALS__' in globalThis)) {
         setUpdateState('error');
-        setUpdateError('Updater only works in the desktop app, not in browser preview.');
+        setUpdateError(t.updateBrowserOnly);
         return;
       }
       const update = await check();
@@ -91,11 +91,11 @@ export const AdminVersionsView = ({ appId = 'kwl-video-downloader' }: { appId?: 
         setPendingUpdate(null);
         setUpdateState('upToDate');
         setUpdateError(null);
+      } else if (lower.includes('signature') || lower.includes('verify')) {
+        setUpdateError(t.updateVerifyFailed);
+        setUpdateState('error');
       } else {
-        const friendly = lower.includes('signature') || lower.includes('verify')
-          ? (language === 'bn' ? 'আপডেট ভেরিফিকেশন ব্যর্থ — রিলিজ ফাইল যাচাই করা যায়নি।' : 'Update verification failed — release signature mismatch.')
-          : raw.length > 180 ? raw.slice(0, 180) + '…' : raw;
-        setUpdateError(friendly);
+        setUpdateError(t.updateCheckFailedGeneric);
         setUpdateState('error');
       }
     }
@@ -105,7 +105,7 @@ export const AdminVersionsView = ({ appId = 'kwl-video-downloader' }: { appId?: 
     <div className="space-y-5">
       <Panel>
         <PanelHeader label={language === 'bn' ? 'আপডেট' : 'Updates'} count={null} compact>
-          <span className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>v{currentVersion} · {appId}</span>
+          <span className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>v{currentVersion}</span>
         </PanelHeader>
 
         <div className={`rounded-xl border px-4 py-3 flex items-center justify-between ${isDark ? 'border-slate-700/30 bg-slate-900/50' : 'border-slate-200 bg-slate-50'}`}>
@@ -129,10 +129,10 @@ export const AdminVersionsView = ({ appId = 'kwl-video-downloader' }: { appId?: 
               {(updateState === 'checking' || updateState === 'downloading') && (
                 <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.25"/><path d="M12 2 a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/></svg>
               )}
-              {updateState === 'checking' ? (language === 'bn' ? 'চেক হচ্ছে…' : 'Checking…') : updateState === 'downloading' ? (language === 'bn' ? 'ডাউনলোড হচ্ছে…' : 'Downloading…') : updateState === 'available' ? (language === 'bn' ? `⬇ Download and Install v${updateVersion ?? ''}` : `⬇ Download and Install v${updateVersion ?? ''}`) : updateState === 'upToDate' ? (language === 'bn' ? 'পুনরায় চেক করুন' : 'Check Again') : (language === 'bn' ? 'আপডেট চেক করুন' : 'Check for Updates')}
+              {updateState === 'checking' ? t.updateChecking : updateState === 'downloading' ? t.updateDownloading : updateState === 'available' ? t.updateDownloadInstall.replace('{version}', updateVersion ?? '') : updateState === 'upToDate' ? t.checkNow : t.checkUpdates}
             </button>
             <span className={`text-sm ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-              {updateState === 'available' ? (language === 'bn' ? `v${updateVersion} রেডি — ইনস্টল করুন` : `v${updateVersion} ready — install now`) : updateState === 'error' ? (updateError ?? 'Check failed') : updateState === 'downloading' ? (language === 'bn' ? 'ইনস্টল হচ্ছে — অ্যাপ রিস্টার্ট হবে…' : 'Installing — app will restart…') : updateState === 'checking' ? (language === 'bn' ? 'চেক হচ্ছে…' : 'Checking…') : (language === 'bn' ? 'GitHub Releases থেকে চেক করে' : 'Checks GitHub Releases')}
+              {updateState === 'available' ? t.updateAvailableShort.replace('{version}', updateVersion ?? '') : updateState === 'error' ? (updateError ?? t.updateCheckFailed) : updateState === 'downloading' ? t.updateInstalling : updateState === 'checking' ? t.updateChecking : t.updateIdleHint}
             </span>
           </div>
           {updateState === 'available' && pendingUpdate && (

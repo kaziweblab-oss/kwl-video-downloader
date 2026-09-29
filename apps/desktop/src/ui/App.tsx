@@ -15,6 +15,8 @@ import { getVersions } from './versioning/tauriVersionsBridge';
 import { useView, type View } from './store/viewStore';
 import { useSettings } from './store/settingsStore';
 import { Toast } from './components/Toast';
+import { BootSplash } from './components/BootSplash';
+import { getFriendlyErrorMessage } from './errorMessages';
 import { check } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
 
@@ -127,50 +129,6 @@ function applyJobToCartItem(item: CartItem, job: DownloadJobStatus): CartItem {
   };
 }
 
-function getFriendlyErrorMessage(error: unknown, fallback: string): string {
-  const raw = error instanceof Error ? error.message : typeof error === 'string' ? error : '';
-  const lower = raw.toLowerCase();
-
-  // Network / offline — highest priority
-  if (lower.includes('network') || lower.includes('offline') || lower.includes('failed to fetch') || lower.includes('fetch failed') || lower.includes('internet') || lower.includes('econn') || lower.includes('timed out') || lower.includes('timeout') || lower.includes('dns') || lower.includes('enotfound') || lower.includes('err_internet_disconnected')) {
-    if (lower.includes('timeout') || lower.includes('timed out')) return 'Request timed out — please check your internet connection and try again.';
-    return 'No internet connection. Please check your network and try again.';
-  }
-  if (lower.includes('invoke') || lower.includes('tauri') || lower.includes('undefined')) {
-    return 'The downloader is unavailable in this environment. Please try again or reopen the app.';
-  }
-  if (lower.includes('invalid url') || lower.includes('only http') || lower.includes('url is required')) {
-    return 'Please enter a valid http or https link.';
-  }
-  if (lower.includes('not a bot') || lower.includes('bot check') || lower.includes('temporarily blocking automated') || lower.includes('429') || lower.includes('too many requests') || lower.includes('rate-limit') || lower.includes('rate limited')) {
-    return 'YouTube is temporarily blocking requests from this network (bot check). Please wait a few minutes and try again.';
-  }
-  if (lower.includes('requires login') || lower.includes('is private or requires login')) {
-    return 'This video is private or requires login and cannot be analyzed.';
-  }
-  if (lower.includes('unsupported url') || lower.includes('unsupported') || lower.includes('private') || lower.includes('unavailable') || lower.includes('no video') || lower.includes('video unavailable') || lower.includes('not available') || lower.includes('unable to retrieve') || lower.includes('unable to retrieve media details') || lower.includes('unable to retrieve playlist details')) {
-    return 'This link is private, unsupported, or unavailable. Please try a public video link.';
-  }
-  if (lower.includes('invalid output directory') || lower.includes('unable to create output folder') || lower.includes('unable to create temporary download workspace')) {
-    return 'Invalid output folder. Please pick a valid folder (e.g., Downloads/KWL Video Downloader) via Browse and try again.';
-  }
-  if (lower.includes('media file was not found') || lower.includes('media file is outside') || lower.includes('media file path is required') || lower.includes('downloaded output file was not found') || lower.includes('downloaded media failed validation') || lower.includes('downloaded media has no valid')) {
-    return 'Media file not found, outside allowed folders, or failed validation. Please check the path and try again.';
-  }
-  if (lower.includes('resolution is required') || lower.includes('quality is required') || lower.includes('format is required') || lower.includes('fps must be greater')) {
-    return 'Please complete the required selections (Type, Format, Quality/Dimension) before adding to queue.';
-  }
-  if (lower.includes('yt-dlp') || lower.includes('runtime is not available') || lower.includes('ffprobe runtime is not available') || lower.includes('ffmpeg runtime is not available')) {
-    return 'Downloader engine not ready. Please restart the app and try again.';
-  }
-  if (lower.includes('download failed') || lower.includes('unable to')) {
-    return 'The analysis could not complete. Please check the link and try again.';
-  }
-
-  if (raw && raw.trim()) return raw.trim();
-  return fallback;
-}
-
 function AppContent() {
   const { view, setView } = useView();
   const { language, setLanguage } = useLanguage();
@@ -200,6 +158,9 @@ function AppContent() {
   const [lastAnalyzeResult, setLastAnalyzeResult] = useState<null | { kind: 'single' | 'playlist'; count: number; label: string }>(null);
   const [updateAvailable, setUpdateAvailable] = useState<{ version: string; update: Awaited<ReturnType<typeof check>> } | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [bootReady, setBootReady] = useState(false);
+  const [bootGone, setBootGone] = useState(false);
+  const bootMarks = useRef({ tools: false, history: false });
 
   const isPlaylistUrl = (value: string) => {
     const lower = value.toLowerCase();
@@ -418,7 +379,7 @@ function AppContent() {
   }, []);
 
   useEffect(() => {
-    void getDownloadHistory().then(setHistory).catch(() => setHistory([]));
+    void getDownloadHistory().then((h) => { setHistory(h); bootMarks.current.history = true; }).catch(() => { setHistory([]); bootMarks.current.history = true; });
   }, []);
 
   // Cleanup orphaned PART files left from previous failed/cancelled downloads (fixes Today duplicate PARTs)
@@ -441,13 +402,30 @@ function AppContent() {
       .then((status) => {
         const unhealthy = status.tools.filter((t) => t.health !== 'healthy' && t.health !== 'missing');
         if (unhealthy.length > 0) {
-          showToast(`Tool check: ${unhealthy.map((t) => `${t.name} (${t.health})`).join(', ')} — using fallback if available`, 'error', 4000);
+          showToast(language === 'bn' ? 'একটি ব্যাকগ্রাউন্ড অংশে নজর দেওয়া দরকার — অ্যাপ স্বাভাবিকভাবে চলবে।' : 'A background component needs attention — the app keeps working with available tools.', 'error', 4000);
         }
+        bootMarks.current.tools = true;
         // Healthy tools: no intrusive dialog, subtle status only
       })
       .catch(() => {
+        bootMarks.current.tools = true;
         // Offline or check failed — keep current verified tools, app remains usable
       });
+  }, []);
+
+  // Boot splash: visible from first paint until core startup work settles
+  // (tools + history) or a 4s cap — the window never looks frozen.
+  useEffect(() => {
+    const startedAt = Date.now();
+    const id = window.setInterval(() => {
+      const done = bootMarks.current.tools && bootMarks.current.history;
+      if (done || Date.now() - startedAt > 4000) {
+        window.clearInterval(id);
+        setBootReady(true);
+        window.setTimeout(() => setBootGone(true), 600);
+      }
+    }, 100);
+    return () => window.clearInterval(id);
   }, []);
 
   // Auto-update check on app start — MANUAL ONLY: notify with Update/Cancel buttons, no auto-download or auto-close
@@ -1307,8 +1285,7 @@ function AppContent() {
       showToast(language === 'bn' ? 'ইনস্টল হয়েছে — রিস্টার্ট হচ্ছে...' : 'Update installed — restarting...', 'success', 1500);
       setTimeout(() => relaunch(), 800);
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      showToast(language === 'bn' ? `আপডেট ব্যর্থ: ${msg.slice(0, 100)}` : `Update failed: ${msg.slice(0, 120)}`, 'error', 4000);
+      showToast(getFriendlyErrorMessage(e, language === 'bn' ? 'আপডেট ব্যর্থ হয়েছে। পরে আবার চেষ্টা করুন।' : 'Update failed. Please try again later.'), 'error', 4000);
       setIsUpdating(false);
     }
   };
@@ -1319,6 +1296,7 @@ function AppContent() {
 
   return (
     <>
+      {!bootGone && <BootSplash visible={!bootReady} />}
       {mainContent}
       {updateAvailable && !isUpdating && (
         <div className="fixed inset-0 z-[998] flex items-center justify-center p-4">
@@ -1332,11 +1310,11 @@ function AppContent() {
                 <p className="text-[1rem] font-bold text-sky-100">{language === 'bn' ? `নতুন আপডেট v${updateAvailable.version} এসেছে` : `Update v${updateAvailable.version} available`}</p>
                 <p className="mt-1 text-[0.88rem] leading-5 text-slate-300">{language === 'bn' ? 'আপডেট করবেন? Settings → Updates থেকেও করতে পারবেন।' : 'Install now? You can also update from Settings → Updates.'}</p>
                 <div className="mt-4 flex gap-2">
-                  <button type="button" onClick={handleUpdateNow} className="rounded-xl bg-[linear-gradient(135deg,#38bdf8_0%,#2563eb_100%)] px-4 py-2 text-sm font-bold text-white shadow hover:-translate-y-px transition"> {language === 'bn' ? 'Update' : 'Update'} </button>
-                  <button type="button" onClick={handleCancelUpdate} className="rounded-xl border border-slate-600 bg-slate-800 px-4 py-2 text-sm font-bold text-slate-200 hover:bg-slate-700 transition"> {language === 'bn' ? 'Cancel' : 'Cancel'} </button>
+                  <button type="button" onClick={handleUpdateNow} className="rounded-xl bg-[linear-gradient(135deg,#38bdf8_0%,#2563eb_100%)] px-4 py-2 text-sm font-bold text-white shadow hover:-translate-y-px transition"> {language === 'bn' ? 'আপডেট করুন' : 'Update'} </button>
+                  <button type="button" onClick={handleCancelUpdate} className="rounded-xl border border-slate-600 bg-slate-800 px-4 py-2 text-sm font-bold text-slate-200 hover:bg-slate-700 transition"> {language === 'bn' ? 'বাতিল' : 'Cancel'} </button>
                 </div>
               </div>
-              <button type="button" onClick={handleCancelUpdate} className="shrink-0 rounded-lg p-1 text-slate-400 hover:bg-slate-800 hover:text-slate-200 transition" aria-label="Close"><svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round"><path d="M18 6L6 18" /><path d="M6 6l12 12" /></svg></button>
+              <button type="button" onClick={handleCancelUpdate} className="shrink-0 rounded-lg p-1 text-slate-400 hover:bg-slate-800 hover:text-slate-200 transition" aria-label={language === 'bn' ? 'বন্ধ করুন' : 'Close'}><svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round"><path d="M18 6L6 18" /><path d="M6 6l12 12" /></svg></button>
             </div>
           </div>
           <style>{`@keyframes toastIn { from { opacity: 0; transform: translateY(10px) scale(0.96); } to { opacity: 1; transform: translateY(0) scale(1); } }`}</style>

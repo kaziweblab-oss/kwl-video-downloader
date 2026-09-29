@@ -47,6 +47,11 @@ COMPLETED:
   - `.gitignore` hardened further: `**/src-tauri/gen/`, `artifacts/`, `pnpm-lock.yaml`, `*.tsbuildinfo`, stray session `*-output*.txt` files
 - Updater latest.json root cause + fix (2026-09-28, unpushed→this commit):
   - App showed "Could not fetch a valid release JSON" because (a) no `latest.json` was ever attached to any release — Tauri does NOT generate it (`tauri-action` did that; we build raw), and (b) endpoint URLs used the wrong repo owner (`kwl/video-downloader` vs `kaziweblab-oss/...`). Fixed owners in 4 confs + both repo `latest.json` copies; deleted stale `temp.json`; new `scripts/generate-latest-json.py` composes the static JSON from collected artifacts (win exe / linux AppImage / mac `.app.tar.gz` + `.sig` pairs, fail-fast when empty); release job now checks out repo, generates, and uploads it. macOS upload also gained `*.tar.gz` (updater cannot use .dmg).
+- v1.0.5 batch (unpushed→this commit):
+  - Merge+validate repair: mp4 joins merge-flag list, `--ffmpeg-location` points at managed ffmpeg (PATH-less machines), output tracker captures `Destination:`/`Merging formats into` lines so validation targets the FINAL file, validate failures log path+reason. 1 new test/app.
+  - Messages: `ui/errorMessages.ts` central map (raw technical text never renders; updater fallback-platform/invalid-JSON/signature mapped; engine wording softened); Queue/History render friendly errors; dev-jargon strings replaced (idle hint, About stack names, aria labels).
+  - i18n: ~55 new EN/BN keys, all literals keyed (Settings/Queue/History/About/Updates/wizard/buttons); key-parity vitest (EN==BN==interface).
+  - Boot: Rust setup no longer blocks window (flush in thread); branded KWL splash overlay until tools+history ready (4s cap).
 - Honest analyze errors (2026-09-28, unpushed→this commit):
   - YouTube bot-check/429 looked identical to a private link (backend swallowed stderr into one generic message). Now `classify_analyze_failure()` maps bot-check/rate-limit → wait-and-retry message, login/private → private message, rest unchanged; frontend shows matching messages. 3 new tests per app. Verified live cause: direct yt-dlp run shows HTTP 429 + "Sign in to confirm you're not a bot" on this network.
 - v1.0.3 tool auto-update (2026-09-28, unpushed→this commit):

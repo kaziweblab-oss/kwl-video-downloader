@@ -38,8 +38,13 @@ pub fn app_setup(app: &tauri::AppHandle) {
     tools::set_bundled_tools_base(base.clone());
     report::set_reports_dir(base.clone());
     versions::set_versions_dir(base);
-    report::flush_pending_reports();
-    tools::background_update_check();
+    // Never block window creation on startup: flush queued reports and the
+    // tool health/update check run in a detached background thread. The UI
+    // shows a branded boot splash until it is ready.
+    std::thread::spawn(|| {
+        report::flush_pending_reports();
+        tools::background_update_check();
+    });
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -947,6 +952,36 @@ fn resolution_dimensions(resolution: &str) -> (Option<u64>, Option<u64>) {
     (None, resolution_height(trimmed))
 }
 
+/// Extract a real output file path from an yt-dlp output line.
+/// Handles bare paths, `[download] Destination: <path>` and
+/// `[Merger] Merging formats into "<path>"` so validation always targets
+/// the FINAL file (merged/converted), never an intermediate `.f*` part.
+fn extract_output_path(line: &str) -> Option<String> {
+    let t = line.trim();
+    if t.is_empty() {
+        return None;
+    }
+    if PathBuf::from(t).is_file() {
+        return Some(t.to_string());
+    }
+    for marker in ["Destination:", "Merging formats into"] {
+        if let Some(idx) = t.find(marker) {
+            let start = idx + marker.len();
+            if start > t.len() {
+                continue;
+            }
+            let mut rest = t[start..].trim().to_string();
+            if rest.len() >= 2 && rest.starts_with('"') && rest.ends_with('"') {
+                rest = rest[1..rest.len() - 1].to_string();
+            }
+            if !rest.is_empty() && PathBuf::from(&rest).is_file() {
+                return Some(rest);
+            }
+        }
+    }
+    None
+}
+
 fn build_video_format_selector(container: &str, height: Option<u64>, width: Option<u64>, fps: Option<u64>) -> String {
     // For QCIF 176x144, width filter is too strict (would exclude 256x144) — ignore width for that specific case and allow any 144p then transcode/scale
     let effective_width = if width == Some(176) && height == Some(144) { None } else { width };
@@ -995,7 +1030,10 @@ fn needs_3gp_transcode(container: &str, transcode: bool) -> bool {
 }
 
 fn video_container_needs_merge(container: &str) -> bool {
-    matches!(container.to_ascii_lowercase().as_str(), "webm" | "mkv" | "avi" | "mov" | "flv")
+    // Any container fetched as separate video+audio streams (DASH) must be
+    // merged — mp4 included. Without the flag yt-dlp leaves orphaned `.f*`
+    // parts and no final file on machines without a global ffmpeg.
+    matches!(container.to_ascii_lowercase().as_str(), "mp4" | "webm" | "mkv" | "avi" | "mov" | "flv")
 }
 
 fn video_container_remux(container: &str) -> bool {
@@ -1287,6 +1325,17 @@ pub fn start_download_impl(request: DownloadRequestInput) -> Result<DownloadJobR
         }
     }
 
+    // Point yt-dlp at the managed ffmpeg so merging/transcoding works even
+    // when no global ffmpeg exists on PATH. Falls back to PATH lookup.
+    if let Ok(ffmpeg_bin) = resolve_ffmpeg() {
+        let dir = std::path::PathBuf::from(&ffmpeg_bin);
+        if let Some(parent) = dir.parent() {
+            if !parent.as_os_str().is_empty() && parent.is_dir() {
+                command.arg("--ffmpeg-location").arg(parent);
+            }
+        }
+    }
+
     command.arg(&request.url);
     command.stdout(Stdio::piped()).stderr(Stdio::piped());
 
@@ -1373,6 +1422,10 @@ pub fn start_download_impl(request: DownloadRequestInput) -> Result<DownloadJobR
                     } else {
                         // keep existing but hide stale speed/eta if none
                     }
+                    if let Some(path) = extract_output_path(&line) {
+                        job.response.output_path = Some(path.clone());
+                        job.response.filename = PathBuf::from(&path).file_name().map(|name| name.to_string_lossy().to_string());
+                    }
                 });
             }
         }
@@ -1424,10 +1477,9 @@ pub fn start_download_impl(request: DownloadRequestInput) -> Result<DownloadJobR
                         job.response.speed_bytes_per_second = sp;
                         job.response.eta_seconds = eta_v;
                     }
-                    let candidate = line.trim();
-                    if PathBuf::from(candidate).is_file() {
-                        job.response.output_path = Some(candidate.to_string());
-                        job.response.filename = PathBuf::from(candidate).file_name().map(|name| name.to_string_lossy().to_string());
+                    if let Some(path) = extract_output_path(&line) {
+                        job.response.output_path = Some(path.clone());
+                        job.response.filename = PathBuf::from(&path).file_name().map(|name| name.to_string_lossy().to_string());
                     }
                 });
             }
@@ -1450,7 +1502,13 @@ pub fn start_download_impl(request: DownloadRequestInput) -> Result<DownloadJobR
                     source_path
                 };
 
-                match final_path.and_then(|path| validate_output_file(&path).ok().map(|_| path)) {
+                match final_path.and_then(|path| match validate_output_file(&path) {
+                    Ok(()) => Some(path),
+                    Err(e) => {
+                        eprintln!("[VALIDATE] failed for {}: {}", path, e);
+                        None
+                    }
+                }) {
                     Some(path) => {
                         update_job(&job_id, |job| {
                             mark_job_completed(job);
@@ -1897,6 +1955,44 @@ mod tests {
     use super::parse_template_progress_line;
     use super::{build_media_analysis_payload, cleanup_temp_directory, create_temp_directory, validate_output_file};
     use super::classify_analyze_failure;
+    use super::extract_output_path;
+
+    #[test]
+    fn extract_output_path_shapes() {
+        let dir = std::env::temp_dir().join(format!(
+            "kwl-extract-test-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("Title.f399.mp4");
+        fs::write(&file, b"data").unwrap();
+        let s = file.to_string_lossy().to_string();
+        // bare path
+        assert_eq!(extract_output_path(&s), Some(s.clone()));
+        // Destination: prefix
+        assert_eq!(
+            extract_output_path(&format!("[download] Destination: {}", s)),
+            Some(s.clone())
+        );
+        // quoted merger line
+        assert_eq!(
+            extract_output_path(&format!("[Merger] Merging formats into \"{}\"", s)),
+            Some(s.clone())
+        );
+        // noise / missing file
+        assert_eq!(extract_output_path(""), None);
+        assert_eq!(
+            extract_output_path("[Merger] Merging formats into \"C:\\no\\such\\file.mp4\""),
+            None
+        );
+        assert_eq!(extract_output_path("[download] 42.5% of 10MiB"), None);
+        let _ = fs::remove_dir_all(&dir);
+    }
 
     #[test]
     fn analyze_failure_bot_check_is_honest() {
@@ -2591,7 +2687,7 @@ mod tests {
     fn flags_container_merge_and_remux_needs() {
         assert!(super::video_container_needs_merge("webm"));
         assert!(super::video_container_needs_merge("MKV"));
-        assert!(!super::video_container_needs_merge("mp4"));
+        assert!(super::video_container_needs_merge("mp4"));
         assert!(!super::video_container_needs_merge("3gp"));
 
         assert!(super::video_container_remux("avi"));

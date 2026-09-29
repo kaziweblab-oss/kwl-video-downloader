@@ -8,10 +8,11 @@ import { relaunch } from '@tauri-apps/plugin-process';
 
 function ThemeSwitcher() {
   const { theme, setTheme, resolvedTheme } = useSettings();
+  const t = useTranslations();
   const modes: { key: ThemeMode; label: string }[] = [
-    { key: 'system', label: 'System' },
-    { key: 'light', label: 'Light' },
-    { key: 'dark', label: 'Dark' },
+    { key: 'system', label: t.themeSystem },
+    { key: 'light', label: t.themeLight },
+    { key: 'dark', label: t.themeDark },
   ];
   return (
     <div className="flex flex-col gap-2">
@@ -29,7 +30,7 @@ function ThemeSwitcher() {
           </button>
         ))}
       </div>
-      <span className={`text-xs break-words whitespace-normal ${resolvedTheme === 'dark' ? 'text-slate-500' : 'text-slate-500'}`}>Active: {resolvedTheme} {theme === 'system' ? '(following OS)' : ''}</span>
+      <span className={`text-xs break-words whitespace-normal ${resolvedTheme === 'dark' ? 'text-slate-500' : 'text-slate-500'}`}>{t.themeActivePrefix} {resolvedTheme === 'dark' ? t.themeDark : t.themeLight} {theme === 'system' ? t.themeFollowingOS : ''}</span>
     </div>
   );
 }
@@ -97,8 +98,8 @@ export const SettingsView = ({ outputDirectory = '', defaultOutputFolder = '', o
     <div className="space-y-5">
 
       <Panel>
-        <PanelHeader label="General" count={null} compact>
-          <h3 className="m-0 text-lg font-bold tracking-tight">General</h3>
+        <PanelHeader label={t.sectionGeneral} count={null} compact>
+          <h3 className="m-0 text-lg font-bold tracking-tight">{t.sectionGeneral}</h3>
         </PanelHeader>
 
         <div className="space-y-4">
@@ -110,7 +111,7 @@ export const SettingsView = ({ outputDirectory = '', defaultOutputFolder = '', o
                 <>
                   <div className="mb-2.5 flex items-center gap-2">
                     <label className={`block font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.defaultOutputFolder}</label>
-                    {isDefault && <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold ${isDark ? 'border-sky-400/30 bg-sky-500/10 text-sky-300' : 'border-sky-200 bg-sky-50 text-sky-700'}`}>Default</span>}
+                    {isDefault && <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold ${isDark ? 'border-sky-400/30 bg-sky-500/10 text-sky-300' : 'border-sky-200 bg-sky-50 text-sky-700'}`}>{t.defaultBadge}</span>}
                   </div>
                   <div className="flex items-end gap-3 max-[760px]:flex-col max-[760px]:items-stretch">
                     <div className="flex-1 min-w-0">
@@ -130,7 +131,7 @@ export const SettingsView = ({ outputDirectory = '', defaultOutputFolder = '', o
           </div>
 
           <div>
-            <label className={`mb-2.5 block font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Language</label>
+            <label className={`mb-2.5 block font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.languageLabel}</label>
             <div className={`inline-flex rounded-[10px] border p-1 ${isDark ? 'border-slate-400/25 bg-slate-900/70' : 'border-slate-300 bg-white'}`}>
               <button
                 type="button"
@@ -157,8 +158,8 @@ export const SettingsView = ({ outputDirectory = '', defaultOutputFolder = '', o
           {!isAndroid && (
             <div className={`flex items-center justify-between gap-3 rounded-xl border px-4 py-3 max-[380px]:flex-col max-[380px]:items-stretch max-[380px]:gap-2.5 ${isDark ? 'border-slate-700/40 bg-slate-800/40' : 'border-slate-300 bg-slate-50'}`}>
               <div className="min-w-0 flex-1">
-                <p className={`text-sm font-bold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>Start up when sign in Windows</p>
-                <p className="text-xs text-slate-500">When active, app auto opens after Windows login — deactive thakle open hobe na</p>
+                <p className={`text-sm font-bold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>{t.autoLaunchTitle}</p>
+                <p className="text-xs text-slate-500">{t.autoLaunchDesc}</p>
               </div>
               <button
                 type="button"
@@ -175,8 +176,8 @@ export const SettingsView = ({ outputDirectory = '', defaultOutputFolder = '', o
       </Panel>
 
       <Panel>
-        <PanelHeader label="Advanced" count={null} compact>
-          <h3 className="m-0 text-lg font-bold tracking-tight">Advanced</h3>
+        <PanelHeader label={t.sectionAdvanced} count={null} compact>
+          <h3 className="m-0 text-lg font-bold tracking-tight">{t.sectionAdvanced}</h3>
         </PanelHeader>
 
         <div className="space-y-4">
@@ -196,8 +197,8 @@ export const SettingsView = ({ outputDirectory = '', defaultOutputFolder = '', o
                     <path d="M16 3.13a4 4 0 0 1 0 7.75" />
                   </svg>
                 </span>
-                <span className={`text-sm font-bold ${isDark ? 'text-slate-100' : 'text-slate-800'}`}>{settings.maxConcurrent} video{settings.maxConcurrent > 1 ? 's' : ''} at once</span>
-                <span className={`ml-1 text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>· Professional</span>
+                <span className={`text-sm font-bold ${isDark ? 'text-slate-100' : 'text-slate-800'}`}>{settings.maxConcurrent === 1 ? t.videosAtOnceOne.replace('{count}', '1') : t.videosAtOnceOther.replace('{count}', String(settings.maxConcurrent))}</span>
+                <span className={`ml-1 text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{t.professionalTag}</span>
               </span>
               <span className={`${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                 <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round"><path d="M8 9l4 4 4-4" /><path d="M16 15l-4-4-4 4" /></svg>
@@ -217,7 +218,7 @@ export const SettingsView = ({ outputDirectory = '', defaultOutputFolder = '', o
                       type="button"
                       onClick={() => setConcurrentModalOpen(false)}
                       className={`rounded-xl border p-2 transition ${isDark ? 'border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-slate-100' : 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-white hover:text-slate-900'}`}
-                      aria-label="Close"
+                      aria-label={t.closeLabel}
                     >
                       <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round"><path d="M18 6L6 18" /><path d="M6 6l12 12" /></svg>
                     </button>
@@ -230,8 +231,8 @@ export const SettingsView = ({ outputDirectory = '', defaultOutputFolder = '', o
                         onClick={() => { setMaxConcurrent(n); setConcurrentModalOpen(false); }}
                         className={`rounded-xl border px-4 py-3 text-left transition ${settings.maxConcurrent === n ? (isDark ? 'border-sky-400 bg-sky-500/15 text-sky-100 shadow-[0_0_0_2px_rgba(56,189,248,0.25)]' : 'border-sky-500 bg-sky-50 text-sky-700 shadow-[0_0_0_2px_rgba(14,165,233,0.18)]') : (isDark ? 'border-slate-700 bg-slate-800/70 text-slate-300 hover:border-slate-600 hover:bg-slate-800' : 'border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-300 hover:bg-white')}`}
                       >
-                        <span className="block text-base font-bold">{n} video{n > 1 ? 's' : ''}</span>
-                        <span className={`block text-xs ${settings.maxConcurrent === n ? (isDark ? 'text-sky-200/80' : 'text-sky-600') : (isDark ? 'text-slate-400' : 'text-slate-500')}`}>{n === 1 ? t.sequential : n === 2 ? t.defaultConcurrent : n === 3 ? t.recommended : n === 5 ? t.maxConcurrent : `${n} parallel`}</span>
+                        <span className="block text-base font-bold">{n === 1 ? t.videosAtOnceOne.replace('{count}', '1') : t.videosAtOnceOther.replace('{count}', String(n))}</span>
+                        <span className={`block text-xs ${settings.maxConcurrent === n ? (isDark ? 'text-sky-200/80' : 'text-sky-600') : (isDark ? 'text-slate-400' : 'text-slate-500')}`}>{n === 1 ? t.sequential : n === 2 ? t.defaultConcurrent : n === 3 ? t.recommended : n === 5 ? t.maxConcurrent : t.parallelCount.replace('{count}', String(n))}</span>
                       </button>
                     ))}
                   </div>
@@ -253,15 +254,15 @@ export const SettingsView = ({ outputDirectory = '', defaultOutputFolder = '', o
       </Panel>
 
       <Panel>
-        <PanelHeader label="Updates" count={null} compact>
-          <h3 className="m-0 text-lg font-bold tracking-tight">Updates</h3>
+        <PanelHeader label={t.sectionUpdates} count={null} compact>
+          <h3 className="m-0 text-lg font-bold tracking-tight">{t.sectionUpdates}</h3>
         </PanelHeader>
 
         <div className="space-y-4">
           <div className={`flex items-center justify-between gap-3 rounded-xl border px-4 py-3 max-[380px]:flex-col max-[380px]:items-stretch max-[380px]:gap-2.5 ${isDark ? 'border-slate-700/40 bg-slate-800/40' : 'border-slate-300 bg-white'}`}>
             <div className="min-w-0 flex-1">
-              <p className={`text-sm font-bold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>Auto-check on startup</p>
-              <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{language === 'bn' ? 'আপডেট পাওয়া গেলে নোটিফিকেশন দেখাবে — এখান থেকে ম্যানুয়ালি ইনস্টল করুন' : 'Shows notification when update found — install manually from here'}</p>
+              <p className={`text-sm font-bold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>{t.autoUpdateTitle}</p>
+              <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{t.autoUpdateDesc}</p>
             </div>
             <button
               type="button"
@@ -275,7 +276,7 @@ export const SettingsView = ({ outputDirectory = '', defaultOutputFolder = '', o
           </div>
 
           <div className={`rounded-xl border px-4 py-2.5 flex items-center justify-between ${isDark ? 'border-slate-700/30 bg-slate-900/50' : 'border-slate-200 bg-slate-100'}`}>
-            <span className={`text-xs font-bold ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Current version</span>
+            <span className={`text-xs font-bold ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{t.currentVersionLabel}</span>
             <span className={`text-sm font-extrabold ${isDark ? 'text-sky-200' : 'text-sky-600'}`}>v{currentVersion}</span>
           </div>
 
@@ -306,7 +307,7 @@ export const SettingsView = ({ outputDirectory = '', defaultOutputFolder = '', o
                   try {
                     if (!('__TAURI_INTERNALS__' in globalThis)) {
                       setUpdateState('error');
-                      setUpdateError('Updater only works in the desktop app, not in browser preview.');
+                      setUpdateError(t.updateBrowserOnly);
                       return;
                     }
                     const update = await check();
@@ -328,11 +329,11 @@ export const SettingsView = ({ outputDirectory = '', defaultOutputFolder = '', o
                       setUpdateState('upToDate');
                       setUpdateError(null);
                       setTimeout(() => setUpdateState('idle'), 3000);
+                    } else if (lower.includes('signature') || lower.includes('verify')) {
+                      setUpdateError(t.updateVerifyFailed);
+                      setUpdateState('error');
                     } else {
-                      const friendly = lower.includes('signature') || lower.includes('verify')
-                        ? (language === 'bn' ? 'আপডেট ভেরিফিকেশন ব্যর্থ — রিলিজ ফাইল যাচাই করা যায়নি।' : 'Update verification failed — release signature mismatch.')
-                        : raw.length > 180 ? raw.slice(0, 180) + '…' : raw;
-                      setUpdateError(friendly);
+                      setUpdateError(t.updateCheckFailedGeneric);
                       setUpdateState('error');
                     }
                   }
@@ -342,19 +343,19 @@ export const SettingsView = ({ outputDirectory = '', defaultOutputFolder = '', o
                 {(updateState === 'checking' || updateState === 'downloading') && (
                   <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.25"/><path d="M12 2 a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/></svg>
                 )}
-                {updateState === 'checking' ? 'Checking…' : updateState === 'downloading' ? 'Downloading…' : updateState === 'available' ? `Download v${updateVersion ?? ''}` : t.checkNow}
+                {updateState === 'checking' ? t.updateChecking : updateState === 'downloading' ? t.updateDownloading : updateState === 'available' ? t.updateDownloadInstall.replace('{version}', updateVersion ?? '') : t.checkNow}
               </button>
               <span className={`text-sm ${resolvedTheme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
-                {updateState === 'upToDate' ? '✓ Already on latest version' : updateState === 'available' ? `Update v${updateVersion} available — click to install` : updateState === 'error' ? (updateError ?? 'Check failed') : updateState === 'downloading' ? 'Installing — app will restart…' : updateVersion && updateState === 'idle' ? `New v${updateVersion} detected — Check Now to install` : 'Checks GitHub Releases'}
+                {updateState === 'upToDate' ? t.updateUpToDate : updateState === 'available' ? t.updateAvailableShort.replace('{version}', updateVersion ?? '') : updateState === 'error' ? (updateError ?? t.updateCheckFailed) : updateState === 'downloading' ? t.updateInstalling : updateVersion && updateState === 'idle' ? t.updateNewDetected.replace('{version}', updateVersion) : t.updateIdleHint}
               </span>
             </div>
             {updateState === 'available' && pendingUpdate && (
               <div className={`mt-3 rounded-xl border px-4 py-3 ${isDark ? 'border-sky-500/30 bg-sky-500/10' : 'border-sky-200 bg-sky-50'}`}>
-                <p className={`text-sm font-bold ${isDark ? 'text-sky-200' : 'text-sky-700'}`}>v{updateVersion} available — {language === 'bn' ? 'ডাউনলোড করে রিস্টার্ট হবে' : 'will download and restart'}</p>
+                <p className={`text-sm font-bold ${isDark ? 'text-sky-200' : 'text-sky-700'}`}>{t.updateAvailableLong.replace('{version}', updateVersion ?? '')}</p>
                 {(pendingUpdate as any).body && <p className={`mt-1 text-xs line-clamp-3 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>{String((pendingUpdate as any).body).slice(0, 400)}</p>}
                 <div className="mt-3 flex gap-2">
-                  <button type="button" onClick={() => { setPendingUpdate(null); setUpdateState('idle'); try { localStorage.removeItem('kwl:update-available'); } catch {} }} className={`rounded-xl border px-3 py-1.5 text-xs font-bold transition ${isDark ? 'border-slate-600 bg-slate-800 text-slate-300 hover:bg-slate-700' : 'border-slate-300 bg-white text-slate-600 hover:bg-slate-50'}`}>{language === 'bn' ? 'Cancel' : 'Cancel'}</button>
-                  <span className={`text-xs self-center ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{language === 'bn' ? 'auto window বন্ধ হবে না — Update চাপলে ইনস্টল হবে' : 'window will not auto-close — press Update to install'}</span>
+                  <button type="button" onClick={() => { setPendingUpdate(null); setUpdateState('idle'); try { localStorage.removeItem('kwl:update-available'); } catch {} }} className={`rounded-xl border px-3 py-1.5 text-xs font-bold transition ${isDark ? 'border-slate-600 bg-slate-800 text-slate-300 hover:bg-slate-700' : 'border-slate-300 bg-white text-slate-600 hover:bg-slate-50'}`}>{t.cancel}</button>
+                  <span className={`text-xs self-center ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{t.updateNoAutoCloseHint}</span>
                 </div>
               </div>
             )}

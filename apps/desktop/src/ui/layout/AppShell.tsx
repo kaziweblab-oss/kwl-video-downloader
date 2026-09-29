@@ -85,7 +85,7 @@ const Sidebar = ({ open, onClose }: { open?: boolean; onClose?: () => void }) =>
     { key: 'downloader', label: t.navDownloader, icon: <HomeIcon /> },
     { key: 'queue', label: t.navQueue, icon: <QueueIcon /> },
     { key: 'history', label: t.navHistory, icon: <HistoryIcon /> },
-    { key: 'versions', label: 'Versions', icon: <VersionsIcon /> },
+    { key: 'versions', label: t.navVersions, icon: <VersionsIcon /> },
     { key: 'settings', label: t.navSettings, icon: <SettingsIcon /> },
     { key: 'about', label: t.navAbout, icon: <InfoIcon /> },
   ];

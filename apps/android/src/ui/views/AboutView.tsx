@@ -32,7 +32,7 @@ export const AboutView = () => {
       <Panel padding="lg">
         <div className="grid justify-items-center gap-4 text-center">
           <div className={`flex items-center justify-center w-20 h-20 rounded-2xl border-2 overflow-hidden p-2 ${isDark ? 'border-kwl-brand-blue bg-kwl-brand-blue/10' : 'border-sky-300 bg-sky-50'}`}>
-            <img src="/kwl-logo.png" alt="KWL Video Downloader Logo" className="w-full h-full object-contain" />
+            <img src="/kwl-logo.png" alt={t.aboutLogoAlt} className="w-full h-full object-contain" />
           </div>
           <div>
             <h2 className={`m-0 text-2xl font-bold tracking-tight ${isDark ? 'text-slate-50' : 'text-slate-900'}`}>KWL Video Downloader</h2>
@@ -72,7 +72,7 @@ export const AboutView = () => {
           <div className={`relative w-full max-w-[560px] max-h-[75vh] overflow-hidden rounded-2xl border shadow-[0_20px_60px_rgba(0,0,0,0.5)] flex flex-col ${isDark ? 'border-slate-700/50 bg-slate-900' : 'border-slate-200 bg-white'}`}>
             <div className={`flex items-center justify-between border-b px-5 py-4 ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
               <h3 className={`text-base font-bold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{t.aboutPrivacyTitle}</h3>
-              <button type="button" onClick={() => setShowPrivacy(false)} className={`rounded-xl border p-2 transition ${isDark ? 'border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700' : 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-white'}`} aria-label="Close">
+              <button type="button" onClick={() => setShowPrivacy(false)} className={`rounded-xl border p-2 transition ${isDark ? 'border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700' : 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-white'}`} aria-label={t.closeLabel}>
                 <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round"><path d="M18 6L6 18" /><path d="M6 6l12 12" /></svg>
               </button>
             </div>
@@ -83,7 +83,7 @@ export const AboutView = () => {
               </div>
             </div>
             <div className={`flex justify-end border-t px-5 py-3 ${isDark ? 'border-slate-800 bg-slate-900/80' : 'border-slate-200 bg-slate-50'}`}>
-              <button type="button" onClick={() => setShowPrivacy(false)} className="rounded-xl bg-[linear-gradient(135deg,#38bdf8_0%,#2563eb_100%)] px-5 py-2 text-sm font-bold text-white shadow">OK</button>
+              <button type="button" onClick={() => setShowPrivacy(false)} className="rounded-xl bg-[linear-gradient(135deg,#38bdf8_0%,#2563eb_100%)] px-5 py-2 text-sm font-bold text-white shadow">{t.okButton}</button>
             </div>
           </div>
         </div>

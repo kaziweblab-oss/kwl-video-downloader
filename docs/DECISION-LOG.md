@@ -1,6 +1,10 @@
 # Decision Log
 
 ## 2026-09-28
+### Decision: merge via managed ffmpeg + validate the final file (v1.0.5)
+MP4 requested DASH streams but got no merge flag and yt-dlp never learned the managed ffmpeg path (PATH-less machines) → orphaned `.f*` parts, no final file. Now mp4 is merged, `--ffmpeg-location` points at managed ffmpeg, output tracking captures merger/destination lines, and validation logs path+reason.
+### Decision: no raw technical text in UI + full EN/BN keys + branded boot splash
+Central `errorMessages.ts` (Queue/History reuse it); ~55 new translation keys with parity test; Rust setup work moved off the window-creation path; KWL-branded splash (logo, Made by Kazi Web Lab) covers boot until ready (4s cap).
 ### Decision: generate updater latest.json in CI (Tauri does not emit it)
 `tauri build` produces bundles + `.sig` files but no `latest.json` (that was `tauri-action`'s job; we build raw + manual upload). New `scripts/generate-latest-json.py` pairs bundles with sigs per OS-ARCH and fails loudly when empty; macOS uploads include `.app.tar.gz` since the updater cannot consume `.dmg`. Endpoint owner fixed to `kaziweblab-oss` in all 4 configs.
 ### Decision: honest analyze-failure messages (bot-check vs private vs generic)

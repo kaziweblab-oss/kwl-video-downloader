@@ -29,6 +29,20 @@ export const HistoryView = ({
   const { resolvedTheme } = useSettings();
   const isDark = resolvedTheme === 'dark';
 
+  const statusText = (s: string): string => {
+    const l = s.toLowerCase();
+    if (l === 'completed') return t.completed;
+    if (l === 'failed') return t.failed;
+    if (l === 'cancelled') return t.cancelled;
+    if (l === 'downloading') return t.downloading;
+    if (l === 'processing') return t.processing;
+    if (l === 'validating') return t.validating;
+    if (l === 'queued' || l === 'pending') return t.queued;
+    if (l === 'paused') return t.paused;
+    if (l === 'converting') return t.converting;
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  };
+
   if (history.length === 0) {
     return (
       <Panel>
@@ -42,10 +56,10 @@ export const HistoryView = ({
             onClick={() => onClearAll?.()}
             disabled
             className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold cursor-not-allowed opacity-60 ${isDark ? 'border-slate-700 bg-slate-800/50 text-slate-500' : 'border-slate-200 bg-slate-100 text-slate-400'}`}
-            title="Clear history"
+            title={t.clearHistory}
           >
             <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d="M4 7h16" /><path d="M9 7V5h6v2" /><path d="m6 7 1 13h10l1-13" /><path d="M10 11v6M14 11v6" /></svg>
-            Clear history
+            {t.clearHistory}
           </button>
         </div>
 
@@ -64,7 +78,7 @@ export const HistoryView = ({
           <h3 className={`m-0 text-lg font-bold tracking-tight ${isDark ? 'text-slate-50' : 'text-slate-900'}`}>{t.recentDownloads}</h3>
           <span className={`inline-flex min-h-6 items-center rounded-full border px-[0.55rem] py-[0.18rem] text-[0.7rem] font-bold ${isDark ? 'border-sky-300/25 bg-cyan-700/20 text-sky-200' : 'border-sky-200 bg-sky-50 text-sky-700'}`}>{history.length} {t.items}</span>
           {onRefresh && (
-            <button type="button" onClick={() => onRefresh?.()} className={`ml-1 inline-flex h-7 w-7 items-center justify-center rounded-full border transition ${isDark ? 'border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`} title="Refresh">
+            <button type="button" onClick={() => onRefresh?.()} className={`ml-1 inline-flex h-7 w-7 items-center justify-center rounded-full border transition ${isDark ? 'border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`} title={t.refresh}>
               <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M20 11a8 8 0 0 0-14.5-3L3 11"/><path d="M3 6v5h5"/><path d="M4 13a8 8 0 0 0 14.5 3L21 13"/><path d="M21 18v-5h-5"/></svg>
             </button>
           )}
@@ -73,7 +87,7 @@ export const HistoryView = ({
           type="button"
           onClick={() => onClearAll?.()}
           className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition ${isDark ? 'border-red-400/25 bg-slate-900/70 text-red-300 hover:border-red-400/70 hover:bg-red-500/20 hover:text-red-100' : 'border-red-200 bg-red-50 text-red-600 hover:bg-red-100 hover:border-red-300'}`}
-          title="Clear history — Remove all"
+          title={t.clearHistory}
         >
           <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d="M4 7h16" /><path d="M9 7V5h6v2" /><path d="m6 7 1 13h10l1-13" /><path d="M10 11v6M14 11v6" /></svg>
           Clear history
@@ -90,7 +104,7 @@ export const HistoryView = ({
 
             <div className="grid min-w-0 gap-1">
               <strong className={`overflow-hidden text-ellipsis whitespace-nowrap text-sm ${isDark ? 'text-slate-50' : 'text-slate-900'}`}>{entry.filename ?? entry.format}</strong>
-              <span className={`text-[0.78rem] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{entry.media_type} · {entry.format} {entry.resolution ? `· ${entry.resolution}` : ''} · {entry.status}</span>
+              <span className={`text-[0.78rem] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{entry.media_type} · {entry.format} {entry.resolution ? `· ${entry.resolution}` : ''} · {statusText(entry.status)}</span>
               <span className={`text-[0.7rem] truncate ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>{entry.output_path ?? ''}</span>
             </div>
 

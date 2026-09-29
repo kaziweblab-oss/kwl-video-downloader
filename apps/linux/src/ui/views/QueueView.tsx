@@ -3,6 +3,7 @@ import { Thumbnail } from '../components/Thumbnail';
 import { Icon } from '../components/Icon';
 import { IconButton } from '../components/IconButton';
 import { useTranslations } from '../hooks/useTranslations';
+import { getFriendlyErrorMessage } from '../errorMessages';
 import { useSettings } from '../store/settingsStore';
 import type { CartItem } from '../App';
 
@@ -105,7 +106,7 @@ export const QueueView = ({
     if (s === 'Queued' || s === 'Pending') {
       const tot = item.totalBytes ?? item.analyzedTotalBytes ?? item.analyzedTotalApprox ?? null;
       const sizeStr = formatBytes(tot);
-      if (item.isApprox && sizeStr) return `Queued • Estimated size: ~${sizeStr}`;
+      if (item.isApprox && sizeStr) return t.estimatedQueuedSize.replace('{size}', `~${sizeStr}`);
       if (sizeStr) return t.queuedSize.replace('{size}', sizeStr);
       if (item.totalBytes == null && item.analyzedTotalBytes == null && item.analyzedTotalApprox == null) return t.unknownQueuedSize;
       return t.queued;
@@ -114,16 +115,16 @@ export const QueueView = ({
     if (s === 'Processing') return t.processing;
     if (s === 'Validating') return t.validating;
     if (s === 'Completed') return t.completed;
-    if (s === 'Failed') return item.error ? `${t.failed} · ${item.error}` : t.failed;
+    if (s === 'Failed') return item.error ? `${t.failed} · ${getFriendlyErrorMessage(item.error, t.failed)}` : t.failed;
     if (s === 'Cancelled') return t.cancelled;
     if (s === 'Paused') {
       const dp = getDisplayProgress(item);
-      const parts: string[] = ['Paused'];
+      const parts: string[] = [t.paused];
       if (dp.percent != null) parts.push(`${dp.percent}%`);
       const dl = formatBytes(dp.downloadedBytes);
       const tot = formatBytes(dp.totalBytes);
       if (dl && tot) parts.push(`${dl} / ${tot}`);
-      else if (dl) parts.push(`${dl} downloaded`);
+      else if (dl) parts.push(`${dl} ${t.downloadedSuffix}`);
       return parts.join(' • ');
     }
     const dp = getDisplayProgress(item);
@@ -133,10 +134,10 @@ export const QueueView = ({
     const tot = formatBytes(dp.totalBytes);
     const etaVal = formatEta(dp.eta);
     const eta = etaVal ? `ETA ${etaVal}` : null;
-    const bytesPart = dl && tot ? `${dl} / ${tot}` : dl ? `${dl} downloaded` : null;
+    const bytesPart = dl && tot ? `${dl} / ${tot}` : dl ? `${dl} ${t.downloadedSuffix}` : null;
     const parts: (string | null)[] = [pctStr, speed, bytesPart, eta].filter(Boolean) as string[];
     if (parts.length === 0) {
-      return dl ? `Downloading • ${dl} downloaded` : 'Downloading...';
+      return dl ? `${t.downloading} • ${dl} ${t.downloadedSuffix}` : t.downloadingNow;
     }
     return parts.join(' • ');
   };
@@ -146,19 +147,19 @@ export const QueueView = ({
       <Panel>
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-2.5">
-            <h3 className={`m-0 text-lg font-bold tracking-tight ${isDark ? 'text-slate-50' : 'text-slate-900'}`}>Queue</h3>
+            <h3 className={`m-0 text-lg font-bold tracking-tight ${isDark ? 'text-slate-50' : 'text-slate-900'}`}>{t.queueTitle}</h3>
             <span className={`inline-flex min-h-6 items-center rounded-full border px-[0.55rem] py-[0.18rem] text-[0.7rem] font-bold ${isDark ? 'border-sky-300/25 bg-cyan-700/20 text-sky-200' : 'border-sky-200 bg-sky-50 text-sky-700'}`}>0 {t.items}</span>
           </div>
           <div className="flex items-center gap-2.5">
-            <h3 className={`m-0 text-lg font-bold tracking-tight ${isDark ? 'text-slate-50' : 'text-slate-900'}`}>Download pending</h3>
-            <span className={`inline-flex min-h-6 items-center rounded-full border px-[0.55rem] py-[0.18rem] text-[0.7rem] font-bold ${isDark ? 'border-amber-400/25 bg-amber-700/20 text-amber-200' : 'border-amber-200 bg-amber-50 text-amber-700'}`}>0 pending</span>
+            <h3 className={`m-0 text-lg font-bold tracking-tight ${isDark ? 'text-slate-50' : 'text-slate-900'}`}>{t.downloadPending}</h3>
+            <span className={`inline-flex min-h-6 items-center rounded-full border px-[0.55rem] py-[0.18rem] text-[0.7rem] font-bold ${isDark ? 'border-amber-400/25 bg-amber-700/20 text-amber-200' : 'border-amber-200 bg-amber-50 text-amber-700'}`}>{t.pendingCount.replace('{count}', '0')}</span>
           </div>
         </div>
         <div className="mt-3 flex flex-wrap gap-2">
-          <button type="button" onClick={() => onPauseAll?.()} disabled={!hasDownloading} className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition ${hasDownloading ? (isDark ? 'border-amber-400/30 bg-amber-600/20 text-amber-200 hover:bg-amber-600/30' : 'border-amber-300 bg-amber-100 text-amber-700 hover:bg-amber-200') : (isDark ? 'border-slate-700 bg-slate-800/50 text-slate-500 cursor-not-allowed opacity-60' : 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed opacity-70')}`}><svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><rect x="6" y="4" width="4" height="16" /><rect x="14" y="4" width="4" height="16" /></svg> Pause All</button>
-          <button type="button" onClick={() => onResumeAll?.()} disabled={!hasPaused} className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition ${hasPaused ? (isDark ? 'border-emerald-400/30 bg-emerald-600/20 text-emerald-200 hover:bg-emerald-600/30' : 'border-emerald-300 bg-emerald-100 text-emerald-700 hover:bg-emerald-200') : (isDark ? 'border-slate-700 bg-slate-800/50 text-slate-500 cursor-not-allowed opacity-60' : 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed opacity-70')}`}><svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg> Resume All</button>
-          <button type="button" onClick={() => onCancelAll?.()} disabled={!hasActive} className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition ${hasActive ? (isDark ? 'border-red-400/30 bg-red-600/20 text-red-200 hover:bg-red-600/30' : 'border-red-200 bg-red-50 text-red-600 hover:bg-red-100') : (isDark ? 'border-slate-700 bg-slate-800/50 text-slate-500 cursor-not-allowed opacity-60' : 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed opacity-70')}`}><svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18" /><path d="M6 6l12 12" /></svg> Cancel All</button>
-          <button type="button" onClick={() => onClearQueue?.()} disabled={cart.length === 0} className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition ${cart.length > 0 ? (isDark ? 'border-slate-400/30 bg-slate-700/40 text-slate-200 hover:bg-slate-600/50 hover:text-white' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50') : (isDark ? 'border-slate-700 bg-slate-800/50 text-slate-500 cursor-not-allowed opacity-60' : 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed opacity-70')}`}><svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d="M4 7h16" /><path d="M9 7V5h6v2" /><path d="m6 7 1 13h10l1-13" /><path d="M10 11v6M14 11v6" /></svg> Clear Queue</button>
+          <button type="button" onClick={() => onPauseAll?.()} disabled={!hasDownloading} className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition ${hasDownloading ? (isDark ? 'border-amber-400/30 bg-amber-600/20 text-amber-200 hover:bg-amber-600/30' : 'border-amber-300 bg-amber-100 text-amber-700 hover:bg-amber-200') : (isDark ? 'border-slate-700 bg-slate-800/50 text-slate-500 cursor-not-allowed opacity-60' : 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed opacity-70')}`}><svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><rect x="6" y="4" width="4" height="16" /><rect x="14" y="4" width="4" height="16" /></svg> {t.pauseAll}</button>
+          <button type="button" onClick={() => onResumeAll?.()} disabled={!hasPaused} className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition ${hasPaused ? (isDark ? 'border-emerald-400/30 bg-emerald-600/20 text-emerald-200 hover:bg-emerald-600/30' : 'border-emerald-300 bg-emerald-100 text-emerald-700 hover:bg-emerald-200') : (isDark ? 'border-slate-700 bg-slate-800/50 text-slate-500 cursor-not-allowed opacity-60' : 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed opacity-70')}`}><svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg> {t.resumeAll}</button>
+          <button type="button" onClick={() => onCancelAll?.()} disabled={!hasActive} className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition ${hasActive ? (isDark ? 'border-red-400/30 bg-red-600/20 text-red-200 hover:bg-red-600/30' : 'border-red-200 bg-red-50 text-red-600 hover:bg-red-100') : (isDark ? 'border-slate-700 bg-slate-800/50 text-slate-500 cursor-not-allowed opacity-60' : 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed opacity-70')}`}><svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18" /><path d="M6 6l12 12" /></svg> {t.cancelAll}</button>
+          <button type="button" onClick={() => onClearQueue?.()} disabled={cart.length === 0} className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition ${cart.length > 0 ? (isDark ? 'border-slate-400/30 bg-slate-700/40 text-slate-200 hover:bg-slate-600/50 hover:text-white' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50') : (isDark ? 'border-slate-700 bg-slate-800/50 text-slate-500 cursor-not-allowed opacity-60' : 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed opacity-70')}`}><svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d="M4 7h16" /><path d="M9 7V5h6v2" /><path d="m6 7 1 13h10l1-13" /><path d="M10 11v6M14 11v6" /></svg> {t.clearQueue}</button>
         </div>
         <div className="grid justify-items-center gap-2 px-3 pb-3 pt-5 text-center"><Icon name="empty" /><p className={`mt-3.5 text-[0.95rem] ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{t.queueEmpty}</p></div>
       </Panel>
@@ -168,14 +169,14 @@ export const QueueView = ({
   return (
     <Panel>
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div className="flex items-center gap-2.5"><h3 className={`m-0 text-lg font-bold tracking-tight ${isDark ? 'text-slate-50' : 'text-slate-900'}`}>Queue</h3><span className={`inline-flex min-h-6 items-center rounded-full border px-[0.55rem] py-[0.18rem] text-[0.7rem] font-bold ${isDark ? 'border-sky-300/25 bg-cyan-700/20 text-sky-200' : 'border-sky-200 bg-sky-50 text-sky-700'}`}>{cart.length} {t.items}</span></div>
-        <div className="flex items-center gap-2.5"><h3 className={`m-0 text-lg font-bold tracking-tight ${isDark ? 'text-slate-50' : 'text-slate-900'}`}>Download pending</h3><span className={`inline-flex min-h-6 items-center rounded-full border px-[0.55rem] py-[0.18rem] text-[0.7rem] font-bold ${isDark ? 'border-amber-400/25 bg-amber-700/20 text-amber-200' : 'border-amber-200 bg-amber-50 text-amber-700'}`}>{pendingCount} pending</span></div>
+        <div className="flex items-center gap-2.5"><h3 className={`m-0 text-lg font-bold tracking-tight ${isDark ? 'text-slate-50' : 'text-slate-900'}`}>{t.queueTitle}</h3><span className={`inline-flex min-h-6 items-center rounded-full border px-[0.55rem] py-[0.18rem] text-[0.7rem] font-bold ${isDark ? 'border-sky-300/25 bg-cyan-700/20 text-sky-200' : 'border-sky-200 bg-sky-50 text-sky-700'}`}>{cart.length} {t.items}</span></div>
+        <div className="flex items-center gap-2.5"><h3 className={`m-0 text-lg font-bold tracking-tight ${isDark ? 'text-slate-50' : 'text-slate-900'}`}>{t.downloadPending}</h3><span className={`inline-flex min-h-6 items-center rounded-full border px-[0.55rem] py-[0.18rem] text-[0.7rem] font-bold ${isDark ? 'border-amber-400/25 bg-amber-700/20 text-amber-200' : 'border-amber-200 bg-amber-50 text-amber-700'}`}>{t.pendingCount.replace('{count}', String(pendingCount))}</span></div>
       </div>
       <div className="mt-3 flex flex-wrap gap-2">
-        <button type="button" onClick={() => onPauseAll?.()} disabled={!hasDownloading} className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition ${hasDownloading ? (isDark ? 'border-amber-400/30 bg-amber-600/20 text-amber-200 hover:bg-amber-600/30' : 'border-amber-300 bg-amber-100 text-amber-700 hover:bg-amber-200') : (isDark ? 'border-slate-700 bg-slate-800/50 text-slate-500 cursor-not-allowed opacity-60' : 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed opacity-70')}`}><svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><rect x="6" y="4" width="4" height="16" /><rect x="14" y="4" width="4" height="16" /></svg> Pause All</button>
-        <button type="button" onClick={() => onResumeAll?.()} disabled={!hasPaused} className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition ${hasPaused ? (isDark ? 'border-emerald-400/30 bg-emerald-600/20 text-emerald-200 hover:bg-emerald-600/30' : 'border-emerald-300 bg-emerald-100 text-emerald-700 hover:bg-emerald-200') : (isDark ? 'border-slate-700 bg-slate-800/50 text-slate-500 cursor-not-allowed opacity-60' : 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed opacity-70')}`}><svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg> Resume All</button>
-        <button type="button" onClick={() => onCancelAll?.()} disabled={!hasActive} className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition ${hasActive ? (isDark ? 'border-red-400/30 bg-red-600/20 text-red-200 hover:bg-red-600/30' : 'border-red-200 bg-red-50 text-red-600 hover:bg-red-100') : (isDark ? 'border-slate-700 bg-slate-800/50 text-slate-500 cursor-not-allowed opacity-60' : 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed opacity-70')}`}><svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18" /><path d="M6 6l12 12" /></svg> Cancel All</button>
-        <button type="button" onClick={() => onClearQueue?.()} disabled={cart.length === 0} className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition ${cart.length > 0 ? (isDark ? 'border-slate-400/30 bg-slate-700/40 text-slate-200 hover:bg-slate-600/50 hover:text-white' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50') : (isDark ? 'border-slate-700 bg-slate-800/50 text-slate-500 cursor-not-allowed opacity-60' : 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed opacity-70')}`}><svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d="M4 7h16" /><path d="M9 7V5h6v2" /><path d="m6 7 1 13h10l1-13" /><path d="M10 11v6M14 11v6" /></svg> Clear Queue</button>
+        <button type="button" onClick={() => onPauseAll?.()} disabled={!hasDownloading} className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition ${hasDownloading ? (isDark ? 'border-amber-400/30 bg-amber-600/20 text-amber-200 hover:bg-amber-600/30' : 'border-amber-300 bg-amber-100 text-amber-700 hover:bg-amber-200') : (isDark ? 'border-slate-700 bg-slate-800/50 text-slate-500 cursor-not-allowed opacity-60' : 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed opacity-70')}`}><svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><rect x="6" y="4" width="4" height="16" /><rect x="14" y="4" width="4" height="16" /></svg> {t.pauseAll}</button>
+        <button type="button" onClick={() => onResumeAll?.()} disabled={!hasPaused} className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition ${hasPaused ? (isDark ? 'border-emerald-400/30 bg-emerald-600/20 text-emerald-200 hover:bg-emerald-600/30' : 'border-emerald-300 bg-emerald-100 text-emerald-700 hover:bg-emerald-200') : (isDark ? 'border-slate-700 bg-slate-800/50 text-slate-500 cursor-not-allowed opacity-60' : 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed opacity-70')}`}><svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg> {t.resumeAll}</button>
+        <button type="button" onClick={() => onCancelAll?.()} disabled={!hasActive} className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition ${hasActive ? (isDark ? 'border-red-400/30 bg-red-600/20 text-red-200 hover:bg-red-600/30' : 'border-red-200 bg-red-50 text-red-600 hover:bg-red-100') : (isDark ? 'border-slate-700 bg-slate-800/50 text-slate-500 cursor-not-allowed opacity-60' : 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed opacity-70')}`}><svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18" /><path d="M6 6l12 12" /></svg> {t.cancelAll}</button>
+        <button type="button" onClick={() => onClearQueue?.()} disabled={cart.length === 0} className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition ${cart.length > 0 ? (isDark ? 'border-slate-400/30 bg-slate-700/40 text-slate-200 hover:bg-slate-600/50 hover:text-white' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50') : (isDark ? 'border-slate-700 bg-slate-800/50 text-slate-500 cursor-not-allowed opacity-60' : 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed opacity-70')}`}><svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d="M4 7h16" /><path d="M9 7V5h6v2" /><path d="m6 7 1 13h10l1-13" /><path d="M10 11v6M14 11v6" /></svg> {t.clearQueue}</button>
       </div>
 
       <ul className="mt-4 grid list-none gap-3 p-0">
