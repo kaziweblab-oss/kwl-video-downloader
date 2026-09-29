@@ -52,9 +52,12 @@ def main() -> int:
         return text or None
 
     def pick(*suffixes):
+        # Separator-agnostic: real CI names use spaces/underscores/dots
+        # (e.g. `KWL.Video.Downloader_1.0.5_x64-setup.exe`), so suffixes
+        # must NOT assume a leading dash.
         cands = sorted(
             n for n in files
-            if not n.endswith(".sig") and any(n.endswith(s) for s in suffixes)
+            if not n.endswith(".sig") and any(n.lower().endswith(s.lower()) for s in suffixes)
         )
         return cands[0] if cands else None
 
@@ -69,7 +72,9 @@ def main() -> int:
 
     platforms = {}
 
-    win = pick("-x64-setup.exe")
+    win = pick("x64-setup.exe")
+    if win is None:
+        win = pick("x64_en-US.msi", ".msi")
     if win and sig_of(win):
         platforms["windows-x86_64"] = {
             "signature": sig_of(win),

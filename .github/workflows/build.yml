@@ -62,6 +62,10 @@ jobs:
           npm run build --workspace @kwl/desktop
           cd apps/desktop && npx tauri build --bundles nsis msi
 
+      - name: List bundle outputs
+        shell: bash
+        run: find target/release/bundle -type f | sort
+
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -121,6 +125,9 @@ jobs:
           npm run build --workspace @kwl/linux
           cd apps/linux && npx tauri build --bundles deb appimage
 
+      - name: List bundle outputs
+        run: find target/release/bundle -type f | sort
+
       - name: Upload Linux artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -161,6 +168,9 @@ jobs:
         run: |
           npm run build --workspace @kwl/macos
           cd apps/macos && npx tauri build --bundles dmg
+
+      - name: List bundle outputs
+        run: find target/release/bundle -type f | sort
 
       - name: Upload macOS artifacts
         uses: actions/upload-artifact@v4
@@ -240,12 +250,12 @@ jobs:
                   buildConfig = true
               }
 
-              // Permanent APK name: kwl-video-downloader-{versionName}.apk (fallback 1.0.5)
+              // Permanent APK name: kwl-video-downloader-{versionName}.apk (fallback 1.0.6)
               applicationVariants.all {
                   val variant = this
                   outputs.all {
                       val output = this as com.android.build.gradle.internal.api.BaseVariantOutputImpl
-                      val ver = variant.versionName.ifEmpty { "1.0.5" }
+                      val ver = variant.versionName.ifEmpty { "1.0.6" }
                       output.outputFileName = "kwl-video-downloader-${ver}.apk"
                   }
               }
@@ -260,7 +270,7 @@ jobs:
                       import re
                       m = re.search(r"(buildFeatures\s*\{\s*buildConfig\s*=\s*true\s*\})", text)
                       if m:
-                          insert = m.group(1) + "\n\n    // Permanent APK name\n    applicationVariants.all {\n        val variant = this\n        outputs.all {\n            val output = this as com.android.build.gradle.internal.api.BaseVariantOutputImpl\n            val ver = variant.versionName.ifEmpty { \"1.0.5\" }\n            output.outputFileName = \"kwl-video-downloader-${ver}.apk\"\n        }\n    }"
+                          insert = m.group(1) + "\n\n    // Permanent APK name\n    applicationVariants.all {\n        val variant = this\n        outputs.all {\n            val output = this as com.android.build.gradle.internal.api.BaseVariantOutputImpl\n            val ver = variant.versionName.ifEmpty { \"1.0.6\" }\n            output.outputFileName = \"kwl-video-downloader-${ver}.apk\"\n        }\n    }"
                           text = text.replace(m.group(1), insert, 1)
                           fp.write_text(text, encoding="utf-8")
                           print(f"fallback patched {p}")
@@ -293,6 +303,9 @@ jobs:
 
       - name: Build Android APK
         run: cd apps/android && npx tauri android build --apk
+
+      - name: List APK outputs
+        run: find apps/android/src-tauri/gen/android/app/build/outputs -type f -name '*.apk' 2>/dev/null | sort
 
       - name: Upload Android artifacts
         uses: actions/upload-artifact@v4
