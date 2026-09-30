@@ -4,6 +4,22 @@ All notable changes to KWL Video Downloader are documented in this file.
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [Unreleased] - Android install repair + icon unify
+
+### Fixed
+
+- Android `App not installed / package appears to be corrupt`: the android
+  app config now carries `bundle.android` (`minSdkVersion 24`,
+  `versionCode 9`) so versionCode no longer resets to 1 on every build
+- Android signing is stable across releases when `KWL_ANDROID_KEYSTORE_*`
+  secrets are set (throwaway debug key remains the fallback); CI now fails
+  loud on unsigned output via `apksigner verify` + `aapt dump badging`, and
+  only the signed `kwl-video-downloader-*.apk` is uploaded
+- Linux shipped a different logo (`icon.png`/`icon.ico` did not match the
+  other three apps and the 32px/128px/icns files were missing): replaced
+  with the shared KWL set, icon array unified to the same 5-file list on
+  all four apps
+
 ## [1.0.7] - 2026-09-29
 
 ### Fixed

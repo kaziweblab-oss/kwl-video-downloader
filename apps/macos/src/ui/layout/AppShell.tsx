@@ -65,7 +65,7 @@ const Sidebar = ({ open, onClose }: { open?: boolean; onClose?: () => void }) =>
   const { view, setView } = useView();
   const t = useTranslations();
   const { resolvedTheme } = useSettings();
-  const [appVersion, setAppVersion] = useState('1.0.7');
+  const [appVersion, setAppVersion] = useState('1.0.8');
 
   useEffect(() => {
     let cancelled = false;

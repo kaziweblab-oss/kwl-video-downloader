@@ -1,10 +1,10 @@
 # Project State
 
 CURRENT PHASE:
-v1.0.7 updater URL fix + filename trim — tag pending (moved, includes trim)
+v1.0.8 Android install repair + icon unify — working tree (tag pending)
 
 CURRENT TASK:
-Push tag v1.0.7 → CI → publish → installed v1.0.5/1.0.6 must offer one-click update with WORKING download.
+Commit working tree (v1.0.8) → push tag v1.0.8 → CI green → install signed APK on device (uninstall old first) + verify logo on all platforms.
 
 COMPLETED:
 - Phase 0: Repository bootstrap
@@ -76,43 +76,43 @@ COMPLETED:
   - Versions `1.0.0→1.0.2` (`tauri.conf.json:4 versionCode 1→3`, `Cargo.toml:3`, `app.ts:4`, `latest.json`), local bundle `target/release/bundle/nsis/KWL Video Downloader_1.0.2_x64-setup.exe` 5.32 MB built `npx tauri build --bundles nsis`
 
 IN PROGRESS:
-- CI tag build v1.0.3: Validate + Windows + Linux + macOS (icon.icns fix) green with signatures; Android red at `Setup Android SDK` action (external, persistent) — release `needs` dropped android (APK follows); draft Release expected from tag run
-- Docs: PROJECT-STATE/MEMORY/DECISION-LOG/CHANGELOG updated for v1.0.3 (this session)
+- v1.0.8 working tree (uncommitted): version 1.0.8 + versionCode 9 in all 4 apps; android conf gained `bundle.android` + updater `android.installMode`; linux icons replaced with shared KWL set + 5-file icon array unified; CI uses persistent `KWL_ANDROID_KEYSTORE_*` secrets with debug fallback + `apksigner`/`aapt` verify + signed-only APK upload (this session)
+- Human: create `KWL_ANDROID_KEYSTORE_*` repo secrets (one-time) so APK signature stays stable across releases; commit + tag v1.0.8; device test must uninstall the old differently-signed APK first
 
 NEXT:
-- Human: Re-run Android job on GitHub if SDK step was transient; publish draft Release; install `1.0.3` NSIS over local dev and verify Sidebar `v1.0.3`, Analyze with real tools, updater `Already on latest`
+- CI tag build v1.0.8 → draft Release → install signed APK + desktop installers → verify KWL logo (Windows shortcut/taskbar/installer, Linux .desktop/AppImage, macOS DMG, Android launcher)
+
+NEXT:
+- Human: add `KWL_ANDROID_KEYSTORE_BASE64` (+ passwords/alias) repo secrets once; commit working tree; `git tag v1.0.8` + push; publish draft Release; uninstall old APK on device, install signed `kwl-video-downloader-1.0.8.apk`, verify launcher logo + desktop installer logos
 
 KNOWN ISSUES:
-- Local machine now has Rust 1.98.1 + MSVC 14.44 + managed yt-dlp/ffmpeg (installed this session); Java still missing locally so Android packaging stays CI-only
-- Git remote configured (`kaziweblab-oss/kwl-video-downloader`), `main` pushed, tag `v1.0.3` → `ac35cc5` pushed
+- Java still missing locally so Android packaging stays CI-only
+- `KWL_ANDROID_KEYSTORE_*` secrets not set yet → until then each CI build signs with a throwaway debug key (fresh installs work, cross-release updates report corrupt)
 - Windows WebView GUI click-through remains human-required (unchanged)
 
 BLOCKED:
-- Android APK: `android-actions/setup-android@v3` step failed on CI runner (external) — Re-run needed; Rust side verified locally
-- Release publish: waiting on all 4 platform jobs (Windows/macOS/Linux running)
+- None in repo. Human: keystore secrets, tag push, device install test.
 
-LAST VALIDATION (local machine, 2026-09-27):
-- PASS: `cargo check` desktop + android + linux + macos manifests — EXIT=0, no errors (linux/macos/android needed the `[lib]` fix + built `dist/`)
-- PASS: `cargo test` desktop — 77 passed, 0 failed, 3 ignored
-- PASS: `npm run check` (tsc) — clean; `npm test` (vitest) — 58/58
-- PASS: `npm run build` desktop/android/linux/macos frontends — dist built (gitignored)
-- PASS: `npx tauri dev` — window launches, real YouTube analyze works via managed yt-dlp/ffmpeg
-- PASS (CI observed via API): `Build and Release` run #19 Validate job — npm ci + tests + typecheck success on `ac35cc5`
-- IN PROGRESS (CI): Windows/macOS/Linux bundle jobs; Android job FAILED at `Setup Android SDK` action (external) — needs human Re-run
-- NOT RUN: draft Release publish (blocked on all 4 platform jobs); Android APK anywhere; signed-updater end-to-end
+LAST VALIDATION (local machine, 2026-09-30):
+- PASS: `cargo test` desktop — 91 passed, 0 failed, 3 ignored (EXIT=0)
+- PASS: `npm test` (vitest) — 65/65
+- PASS: `npm run check` (tsc) — clean
+- PASS: 4x `tauri.conf.json` parse — version 1.0.8, `bundle.android {24, 9}`, 5-file icon array everywhere
+- PASS: linux `icon.png` hash now equals desktop/macos/android shared KWL set
+- NOT RUN: CI tag build v1.0.8; device APK install; per-platform logo screenshots
 
-TESTS: PASS (58 vitest; 77 cargo / 3 ignored)
+TESTS: PASS (65 vitest; 91 cargo / 3 ignored)
 TYPECHECK: PASS
-BUILD: PASS (frontend vite x4 + Tauri dev compile 447 crates; CI bundles running)
-REAL RUNTIME: PASS (dev app + managed tools, YouTube analyze ok)
-INSTALLER: IN PROGRESS (CI Windows/macOS/Linux building; Android blocked on SDK action)
+BUILD: PASS (frontend typecheck+tests; Tauri bundles via CI tag — NOT RUN yet)
+REAL RUNTIME: NOT RUN (this session; no app-logic change)
+INSTALLER: NOT RUN (waiting on v1.0.8 tag CI)
 LICENSE: NOT RUN (free app)
-KWL NEXUS: REMOVED
+KWL NEXUS: REMOVED (untracked `apps/desktop/src-tauri/src/nexus.rs` draft from prior session left unwired — not compiled, not referenced)
 UPDATE: NOT RUN (needs published Release + signatures)
 REPORT SYSTEM: PASS (unchanged)
-ANDROID APK: BLOCKED (CI SDK-setup action failed; Rust side verified locally)
-GIT RELEASE: IN PROGRESS (`v1.0.3` → `ac35cc5` pushed; runs triggered; no Release published yet)
-LAST UPDATED: 2026-09-27
+ANDROID APK: IN PROGRESS (signing stabilized in CI config; device install NOT RUN)
+GIT RELEASE: IN PROGRESS (v1.0.8 working tree uncommitted; no tag pushed yet)
+LAST UPDATED: 2026-09-30
 
 ## Architecture constraints
 - Tauri 2
@@ -130,4 +130,4 @@ LAST UPDATED: 2026-09-27
 - Keep the verified runtime/downloader architecture intact and the typed Tauri bridge for native interactions
 
 ## Current version
-1.0.7
+1.0.8

@@ -107,7 +107,7 @@ pub fn validate_report(report: &ReportInput) -> Result<(), String> {
 /// Sources, in order: process environment (local dev/testing), then
 /// compile-time baked values (CI secrets), then the public default URL.
 /// The key never lives in the repository.
-fn nexus_config() -> Option<(String, String, String)> {
+pub(crate) fn nexus_config() -> Option<(String, String, String)> {
     let base_url = std::env::var("KWL_NEXUS_URL")
         .ok()
         .filter(|s| !s.trim().is_empty())

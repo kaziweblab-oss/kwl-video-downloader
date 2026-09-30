@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2.0.0/schema.json",
   "productName": "KWL Video Downloader",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "identifier": "com.kwl.videodownloader",
   "build": {
     "beforeDevCommand": "npm run dev --workspace @kwl/desktop",
@@ -34,7 +34,7 @@
     "publisher": "KWL (Kazi Web Lab)",
     "android": {
       "minSdkVersion": 24,
-      "versionCode": 8
+      "versionCode": 9
     },
     "category": "Utility",
     "shortDescription": "Professional video/audio downloader",

@@ -8,7 +8,19 @@ This file is the conversational memory layer for coding agents. Read it first, t
 - Append a new "Last session" entry (move the old one into "Earlier sessions") at the end of meaningful work.
 - Never delete accepted decisions; they are recorded in `DECISION-LOG.md`.
 
-## Last session: 2026-09-28 (v1.0.5 batch — merge fix, messages, i18n, splash)
+## Last session: 2026-09-30 (Android corrupt-install repair + icon unify)
+
+### What we did
+
+- **Android `package corrupt` root causes fixed:** android conf had no `bundle.android` (versionCode reset to 1) → added `minSdkVersion 24 / versionCode 9` + updater `android.installMode`; CI throwaway-per-run debug keystore (different signer each release) → persistent `KWL_ANDROID_KEYSTORE_*` secrets with debug fallback + `apksigner verify`/`aapt dump badging` fail-loud + signed-only APK upload; `BaseVariantOutputImpl` rename kept, flagged as tech debt.
+- **Logo unified:** linux `icon.png`/`icon.ico` were a different image (`kwl-logo-icon.png` copy) with 32px/128px/icns missing → replaced with shared desktop set (hash-verified equal), all 4 icon arrays now the same 5-file list.
+- **Docs:** CHANGELOG Unreleased entry, PROJECT-STATE → v1.0.8 phase/task/validation, DECISION-LOG entry.
+- **Gates PASS:** cargo 91/0/3 ignored (EXIT=0), vitest 65/65, tsc clean, 4x conf parse ok.
+- **Left for human:** `KWL_ANDROID_KEYSTORE_*` secrets (one-time), commit + tag v1.0.8, uninstall old APK then device install test, per-platform logo screenshots. Untracked `nexus.rs` draft left unwired (not compiled).
+
+## Earlier sessions
+
+### 2026-09-28 (v1.0.5 batch — merge fix, messages, i18n, splash)
 
 ### What we did
 

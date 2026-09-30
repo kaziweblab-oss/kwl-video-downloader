@@ -13,7 +13,7 @@ export const AdminVersionsView = ({ appId = 'kwl-video-downloader' }: { appId?: 
   const isDark = resolvedTheme === 'dark';
   const { language } = useLanguage();
   const t = useTranslations();
-  const [currentVersion, setCurrentVersion] = useState('1.0.7');
+  const [currentVersion, setCurrentVersion] = useState('1.0.8');
   const [updateState, setUpdateState] = useState<UpdateState>('idle');
   const [pendingUpdate, setPendingUpdate] = useState<PendingUpdate>(null);
   const [updateVersion, setUpdateVersion] = useState<string | null>(null);
