@@ -307,8 +307,8 @@ jobs:
           find "$RES" -maxdepth 2 | sort
           test -f "$RES/drawable-v24/ic_launcher_foreground.xml" || { echo "ERROR: adaptive ic_launcher_foreground.xml missing from generated res" >&2; exit 1; }
           test -f "$RES/drawable/ic_launcher_background.xml" || { echo "ERROR: ic_launcher_background.xml missing from generated res" >&2; exit 1; }
-          echo "--- adaptive foreground refs ---"
-          grep -o 'android:drawable="[^"]*"' "$RES/drawable-v24/ic_launcher_foreground.xml"
+          echo "--- adaptive foreground ---"
+          cat "$RES/drawable-v24/ic_launcher_foreground.xml"
           echo "--- adaptive background (must be brand dark, not white) ---"
           cat "$RES/drawable/ic_launcher_background.xml"
 
