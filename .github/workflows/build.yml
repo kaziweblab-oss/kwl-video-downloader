@@ -305,9 +305,12 @@ jobs:
         run: |
           RES=apps/android/src-tauri/gen/android/app/src/main/res
           find "$RES" -maxdepth 2 | sort
-          test -f "$RES/mipmap-anydpi-v26/ic_launcher.xml" || { echo "ERROR: adaptive ic_launcher.xml missing from generated res" >&2; exit 1; }
-          grep -o 'android:drawable="[^"]*"' "$RES/mipmap-anydpi-v26/ic_launcher.xml"
-          grep -o '<color name="ic_launcher_background">[^<]*' "$RES"/values*/ic_launcher_background.xml 2>/dev/null || true
+          test -f "$RES/drawable-v24/ic_launcher_foreground.xml" || { echo "ERROR: adaptive ic_launcher_foreground.xml missing from generated res" >&2; exit 1; }
+          test -f "$RES/drawable/ic_launcher_background.xml" || { echo "ERROR: ic_launcher_background.xml missing from generated res" >&2; exit 1; }
+          echo "--- adaptive foreground refs ---"
+          grep -o 'android:drawable="[^"]*"' "$RES/drawable-v24/ic_launcher_foreground.xml"
+          echo "--- adaptive background (must be brand dark, not white) ---"
+          cat "$RES/drawable/ic_launcher_background.xml"
 
       - name: Setup Android signing (persistent keystore via secrets when present, else throwaway CI debug key)
         env:
