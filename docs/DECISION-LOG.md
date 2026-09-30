@@ -1,6 +1,8 @@
 # Decision Log
 
-## 2026-09-28
+## 2026-09-30
+### Decision: CI-generated debug keystore for Android + full icon set per app
+Release APKs were unsigned (Android refuses install) and the android app never received the full `tauri icon` output (flat icon files → Tauri default logo). CI now mints a throwaway debug keystore per run (keytool) + `keystore.properties` and patches `signingConfigs.release` into the generated `build.gradle.kts` (fail-loud if the shape changes); keystore material never touches the repo. Debug-signed APKs install on devices; Play Store publishing will need a persistent upload key (future secret). Each app now carries its own complete icon set + 5-file conf array.
 ### Decision: merge via managed ffmpeg + validate the final file (v1.0.5)
 MP4 requested DASH streams but got no merge flag and yt-dlp never learned the managed ffmpeg path (PATH-less machines) → orphaned `.f*` parts, no final file. Now mp4 is merged, `--ffmpeg-location` points at managed ffmpeg, output tracking captures merger/destination lines, and validation logs path+reason.
 ### Decision: no raw technical text in UI + full EN/BN keys + branded boot splash

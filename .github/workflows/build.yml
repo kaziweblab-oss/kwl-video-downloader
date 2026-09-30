@@ -224,7 +224,7 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces: apps/desktop/src-tauri
+          workspaces: apps/android/src-tauri
 
       - name: Install frontend dependencies
         run: npm ci
@@ -300,6 +300,58 @@ jobs:
             grep -q "name=\"$perm\"" "$MANIFEST" || sed -i "s#</manifest>#    <uses-permission android:name=\"$perm\" />\n</manifest>#" "$MANIFEST"
           done
           grep -n "uses-permission" "$MANIFEST"
+
+      - name: Setup Android signing (CI debug keystore — installs on devices; Play publishing needs an upload key later)
+        run: |
+          keytool -genkey -v -keystore "$RUNNER_TEMP/kwl-debug.keystore" -storetype JKS -keyalg RSA -keysize 2048 -validity 10000 -alias kwldebug -storepass android -keypass android -dname "CN=KWL, OU=KWL Video Downloader, O=KWL, L=Dhaka, C=BD"
+          GEN=apps/android/src-tauri/gen/android
+          printf 'keyAlias=kwldebug\npassword=android\nstoreFile=%s/kwl-debug.keystore\n' "$RUNNER_TEMP" > "$GEN/keystore.properties"
+          echo "keystore.properties written (debug key, device-installable)"
+
+      - name: Patch APK signing config into generated build.gradle.kts
+        run: |
+          python3 << 'PY'
+          import pathlib, re, sys
+          p = pathlib.Path("apps/android/src-tauri/gen/android/app/build.gradle.kts")
+          if not p.exists():
+              print("ERROR: build.gradle.kts not found — 'tauri android init' did not generate apps/android/src-tauri/gen/android", file=sys.stderr)
+              sys.exit(1)
+          text = p.read_text(encoding="utf-8")
+          if "keystore.properties" not in text:
+              block = """    signingConfigs {
+                  create("release") {
+                      val keystorePropertiesFile = rootProject.file("keystore.properties")
+                      val keystoreProperties = java.util.Properties()
+                      if (keystorePropertiesFile.exists()) {
+                          keystoreProperties.load(java.io.FileInputStream(keystorePropertiesFile))
+                      }
+                      keyAlias = keystoreProperties["keyAlias"] as String
+                      keyPassword = keystoreProperties["password"] as String
+                      storeFile = file(keystoreProperties["storeFile"] as String)
+                      storePassword = keystoreProperties["password"] as String
+                  }
+              }
+
+          """
+              m = re.search(r"buildTypes\s*\{", text)
+              if not m:
+                  print("ERROR: no buildTypes block in build.gradle.kts", file=sys.stderr)
+                  sys.exit(1)
+              text = text[:m.start()] + block + text[m.start():]
+              print("signingConfigs block inserted")
+          else:
+              print("signingConfigs already present")
+          if "signingConfigs.getByName(\"release\")" not in text:
+              m2 = re.search(r"(getByName\(\"release\"\)\s*\{)", text)
+              if not m2:
+                  print("ERROR: no getByName(\"release\") block in build.gradle.kts", file=sys.stderr)
+                  sys.exit(1)
+              text = text.replace(m2.group(1), m2.group(1) + "\n                    signingConfig = signingConfigs.getByName(\"release\")", 1)
+              print("release signingConfig wired")
+          else:
+              print("release signingConfig already wired")
+          p.write_text(text, encoding="utf-8")
+          PY
 
       - name: Build Android APK
         run: cd apps/android && npx tauri android build --apk

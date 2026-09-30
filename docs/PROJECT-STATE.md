@@ -45,6 +45,10 @@ COMPLETED:
 - Git (new):
   - `git init`; committed all source as `8ec31c1` "chore: release v1.0.0 - free offline downloader with in-app report system"; tag `v1.0.0` created
   - `.gitignore` hardened further: `**/src-tauri/gen/`, `artifacts/`, `pnpm-lock.yaml`, `*.tsbuildinfo`, stray session `*-output*.txt` files
+- Android installable APK + proper logo (unpushed→this commit):
+  - Root causes: (a) no signing at all — release APKs unsigned → Android refuses install; (b) android app never got the full `tauri icon` set (flat files, no mipmaps/icns) → Tauri default logo shown.
+  - Fix: full icon set generated for android app + 5-file conf array; CI generates a debug keystore (keytool) + `keystore.properties` and patches release `signingConfigs` into generated `build.gradle.kts` (fail-loud); rust-cache workspace corrected to apps/android. Debug-signed APK installs on devices; Play publishing needs an upload key later.
+  - Verification: BLOCKED locally (no Java/SDK) — icon files + conf schema verified here; APK assembly + device install proven only on next tag CI + real device.
 - Updater latest.json root cause + fix (2026-09-28, unpushed→this commit):
   - App showed "Could not fetch a valid release JSON" because (a) no `latest.json` was ever attached to any release — Tauri does NOT generate it (`tauri-action` did that; we build raw), and (b) endpoint URLs used the wrong repo owner (`kwl/video-downloader` vs `kaziweblab-oss/...`). Fixed owners in 4 confs + both repo `latest.json` copies; deleted stale `temp.json`; new `scripts/generate-latest-json.py` composes the static JSON from collected artifacts (win exe / linux AppImage / mac `.app.tar.gz` + `.sig` pairs, fail-fast when empty); release job now checks out repo, generates, and uploads it. macOS upload also gained `*.tar.gz` (updater cannot use .dmg).
 - v1.0.5 batch (unpushed→this commit):
