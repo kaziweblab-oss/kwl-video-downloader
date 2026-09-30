@@ -397,13 +397,14 @@ jobs:
           # which does not exist below API 26 -> NoClassDefFoundError crash on Android 7.x.
           # Core library desugaring backports it; minSdk 24 stays.
           if "isCoreLibraryDesugaringEnabled" not in text:
-              m = re.search(r"^([ \t]*)compileOptions\s*\{\s*$", text, re.M)
+              m = re.search(r"^([ \t]*)kotlinOptions\s*\{\s*$", text, re.M)
               if not m:
-                  print("ERROR: no compileOptions block in build.gradle.kts; file content:", file=sys.stderr)
+                  print("ERROR: no kotlinOptions block in build.gradle.kts; file content:", file=sys.stderr)
                   print(text, file=sys.stderr)
                   sys.exit(1)
-              indent = m.group(1) + "    "
-              text = text[:m.end()] + f"\n{indent}isCoreLibraryDesugaringEnabled = true" + text[m.end():]
+              indent = m.group(1)
+              block = f"{indent}compileOptions {{\n{indent}    isCoreLibraryDesugaringEnabled = true\n{indent}}}\n\n"
+              text = text[:m.start()] + block + text[m.start():]
               print("core library desugaring enabled")
           else:
               print("core library desugaring already enabled")
