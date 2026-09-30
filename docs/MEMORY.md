@@ -19,7 +19,7 @@ This file is the conversational memory layer for coding agents. Read it first, t
 - **Left for human:** `KWL_ANDROID_KEYSTORE_*` secrets (one-time), commit + tag v1.0.8, uninstall old APK then device install test, per-platform logo screenshots. Untracked `nexus.rs` draft left unwired (not compiled).
 - **PM follow-up (same day):** v1.0.8 CI android job failed — `java.util.Properties()` doesn't compile in Gradle Kotlin DSL (`java` shadowed); fixed with explicit imports + `getProperty()` + separate `keyPassword` prop. Committed `4f8c016`, pushed `main`, force-moved tag `v1.0.8` → new CI run. Gates: vitest 65/65, tsc clean.
 - **Updater progress overlay:** `Downloading update...` modal now shows live percent + bar + MB sizes (all 4 App.tsx, EN+BN, shimmer fallback when total unknown). tsc x4 clean, vitest 65/65 PASS. Rides v1.0.9 tag.
-- **v1.0.9 crash diag (logcat, API-25 emulator):** app dies in `TauriActivity.onCreate` — `NoClassDefFoundError: BootstrapMethodError` (API < 26 only). WebView fine (Chrome 119). Fix: CI desugar patch + res/ABI dump proof steps; icon bg `#0a1130`; version 1.0.9/versionCode 10. Gates: tsc x4, vitest 65/65, cargo 91/0/3.
+- **v1.0.9 crash diag (logcat, API-25 emulator):** app dies in `TauriActivity.onCreate` — `NoClassDefFoundError: BootstrapMethodError` (API < 26 only). WebView fine (Chrome 119). Fix: CI desugar patch + res/ABI dump proof steps; icon bg `#0a1130`; version 1.0.9/versionCode 10. Gates: tsc x4, vitest 65/65, cargo 91/0/3. Committed `7f1446c`, tag `v1.0.9` pushed.
 - **APK filename:** professional `KWL-Video-Downloader-{version}.apk` (rename patch + already-patched check + verify/upload globs + docs). Applies from next tag build; published v1.0.8 asset keeps old name.
 
 ## Earlier sessions
