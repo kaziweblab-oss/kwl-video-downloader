@@ -17,6 +17,7 @@ This file is the conversational memory layer for coding agents. Read it first, t
 - **Docs:** CHANGELOG Unreleased entry, PROJECT-STATE → v1.0.8 phase/task/validation, DECISION-LOG entry.
 - **Gates PASS:** cargo 91/0/3 ignored (EXIT=0), vitest 65/65, tsc clean, 4x conf parse ok.
 - **Left for human:** `KWL_ANDROID_KEYSTORE_*` secrets (one-time), commit + tag v1.0.8, uninstall old APK then device install test, per-platform logo screenshots. Untracked `nexus.rs` draft left unwired (not compiled).
+- **PM follow-up (same day):** v1.0.8 CI android job failed — `java.util.Properties()` doesn't compile in Gradle Kotlin DSL (`java` shadowed); fixed with explicit imports + `getProperty()` + separate `keyPassword` prop. Committed `4f8c016`, pushed `main`, force-moved tag `v1.0.8` → new CI run. Gates: vitest 65/65, tsc clean.
 
 ## Earlier sessions
 
