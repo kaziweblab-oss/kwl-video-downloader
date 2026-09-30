@@ -1,10 +1,10 @@
 # Project State
 
 CURRENT PHASE:
-v1.0.8 Android install repair + icon unify — working tree (tag pending)
+v1.0.9 Android 7.x crash fix + icon bg — ready to tag
 
 CURRENT TASK:
-Commit working tree (v1.0.8) → push tag v1.0.8 → CI green → install signed APK on device (uninstall old first) + verify logo on all platforms.
+Commit + `git tag v1.0.9` + push → CI green → uninstall old APK → install `KWL-Video-Downloader-1.0.9.apk` on API-25 emulator (must OPEN, not white-screen) + real phone launcher screenshot.
 
 COMPLETED:
 - Phase 0: Repository bootstrap
@@ -83,7 +83,7 @@ NEXT:
 - CI tag build v1.0.8 → draft Release → install signed APK + desktop installers → verify KWL logo (Windows shortcut/taskbar/installer, Linux .desktop/AppImage, macOS DMG, Android launcher)
 
 NEXT:
-- Human: add `KWL_ANDROID_KEYSTORE_BASE64` (+ passwords/alias) repo secrets once; commit working tree; `git tag v1.0.8` + push; publish draft Release; uninstall old APK on device, install signed `kwl-video-downloader-1.0.8.apk`, verify launcher logo + desktop installer logos
+- Human: add `KWL_ANDROID_KEYSTORE_BASE64` (+ passwords/alias) repo secrets once; commit working tree; `git tag v1.0.8` + push; publish draft Release; uninstall old APK on device, install signed `KWL-Video-Downloader-1.0.8.apk`, verify launcher logo + desktop installer logos
 
 KNOWN ISSUES:
 - Java still missing locally so Android packaging stays CI-only
@@ -99,8 +99,10 @@ LAST VALIDATION (local machine, 2026-09-30):
 - PASS: `npm run check` (tsc) — clean
 - PASS: 4x `tauri.conf.json` parse — version 1.0.8, `bundle.android {24, 9}`, 5-file icon array everywhere
 - PASS: linux `icon.png` hash now equals desktop/macos/android shared KWL set
+- PASS (2026-09-30 PM): tsc x4 + vitest 65/65 + cargo 91/0/3 after v1.0.9 bump; logcat proved API-25 crash cause (desugar fix in CI)
 - NOT RUN: CI tag build v1.0.8; device APK install; per-platform logo screenshots
 - 2026-09-30 PM: v1.0.8 CI run #67 android job FAILED at `gradlew` script compilation (`java.util.Properties()` unresolved in Kotlin DSL — patch missed imports); fixed with explicit imports + `getProperty()` + separate `keyPassword` prop; re-pushing same tag
+- Updater overlay progress (all 4 apps): `Started` contentLength + `Progress` chunkLength accumulate into percent/bar/sizes; unknown-total shimmer fallback; tsc x4 + vitest 65 PASS
 
 TESTS: PASS (65 vitest; 91 cargo / 3 ignored)
 TYPECHECK: PASS
@@ -131,4 +133,4 @@ LAST UPDATED: 2026-09-30
 - Keep the verified runtime/downloader architecture intact and the typed Tauri bridge for native interactions
 
 ## Current version
-1.0.8
+1.0.9

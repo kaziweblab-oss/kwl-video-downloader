@@ -232,7 +232,7 @@ jobs:
       - name: Init Android project
         run: cd apps/android && npx tauri android init --ci
 
-      - name: Patch APK output name to kwl-video-downloader-{version}.apk
+      - name: Patch APK output name to KWL-Video-Downloader-{version}.apk
         run: |
           python3 << 'PY'
           import pathlib
@@ -242,7 +242,7 @@ jobs:
                   print(f"skip missing {p}")
                   continue
               text = fp.read_text(encoding="utf-8")
-              if "kwl-video-downloader" in text:
+              if "KWL-Video-Downloader" in text:
                   print(f"already patched {p}")
                   continue
               old = "    buildFeatures {\n        buildConfig = true\n    }\n}"
@@ -250,13 +250,13 @@ jobs:
                   buildConfig = true
               }
 
-              // Permanent APK name: kwl-video-downloader-{versionName}.apk (fallback 1.0.8)
+              // Permanent APK name: KWL-Video-Downloader-{versionName}.apk (fallback 1.0.9)
               applicationVariants.all {
                   val variant = this
                   outputs.all {
                       val output = this as com.android.build.gradle.internal.api.BaseVariantOutputImpl
-                      val ver = variant.versionName.ifEmpty { "1.0.8" }
-                      output.outputFileName = "kwl-video-downloader-${ver}.apk"
+                      val ver = variant.versionName.ifEmpty { "1.0.9" }
+                      output.outputFileName = "KWL-Video-Downloader-${ver}.apk"
                   }
               }
           }"""
@@ -270,13 +270,13 @@ jobs:
                       import re
                       m = re.search(r"(buildFeatures\s*\{\s*buildConfig\s*=\s*true\s*\})", text)
                       if m:
-                          insert = m.group(1) + "\n\n    // Permanent APK name\n    applicationVariants.all {\n        val variant = this\n        outputs.all {\n            val output = this as com.android.build.gradle.internal.api.BaseVariantOutputImpl\n            val ver = variant.versionName.ifEmpty { \"1.0.8\" }\n            output.outputFileName = \"kwl-video-downloader-${ver}.apk\"\n        }\n    }"
+                          insert = m.group(1) + "\n\n    // Permanent APK name\n    applicationVariants.all {\n        val variant = this\n        outputs.all {\n            val output = this as com.android.build.gradle.internal.api.BaseVariantOutputImpl\n            val ver = variant.versionName.ifEmpty { \"1.0.9\" }\n            output.outputFileName = \"KWL-Video-Downloader-${ver}.apk\"\n        }\n    }"
                           text = text.replace(m.group(1), insert, 1)
                           fp.write_text(text, encoding="utf-8")
                           print(f"fallback patched {p}")
           PY
           echo "Patched build.gradle.kts files:"
-          grep -n "kwl-video-downloader" apps/desktop/src-tauri/gen/android/app/build.gradle.kts apps/android/src-tauri/gen/android/app/build.gradle.kts 2>/dev/null || echo "no gen files yet (will be patched on local builds)"
+          grep -n "KWL-Video-Downloader" apps/desktop/src-tauri/gen/android/app/build.gradle.kts apps/android/src-tauri/gen/android/app/build.gradle.kts 2>/dev/null || echo "no gen files yet (will be patched on local builds)"
 
       - name: Stage bundled native tools into the generated Android project
         run: |
@@ -300,6 +300,14 @@ jobs:
             grep -q "name=\"$perm\"" "$MANIFEST" || sed -i "s#</manifest>#    <uses-permission android:name=\"$perm\" />\n</manifest>#" "$MANIFEST"
           done
           grep -n "uses-permission" "$MANIFEST"
+
+      - name: Dump generated Android launcher icons (fail if adaptive icon missing)
+        run: |
+          RES=apps/android/src-tauri/gen/android/app/src/main/res
+          find "$RES" -maxdepth 2 | sort
+          test -f "$RES/mipmap-anydpi-v26/ic_launcher.xml" || { echo "ERROR: adaptive ic_launcher.xml missing from generated res" >&2; exit 1; }
+          grep -o 'android:drawable="[^"]*"' "$RES/mipmap-anydpi-v26/ic_launcher.xml"
+          grep -o '<color name="ic_launcher_background">[^<]*' "$RES"/values*/ic_launcher_background.xml 2>/dev/null || true
 
       - name: Setup Android signing (persistent keystore via secrets when present, else throwaway CI debug key)
         env:
@@ -373,6 +381,41 @@ jobs:
           p.write_text(text, encoding="utf-8")
           PY
 
+      - name: Patch core library desugaring into generated build.gradle.kts
+        run: |
+          python3 << 'PY'
+          import pathlib, re, sys
+          p = pathlib.Path("apps/android/src-tauri/gen/android/app/build.gradle.kts")
+          if not p.exists():
+              print("ERROR: build.gradle.kts not found — 'tauri android init' did not generate apps/android/src-tauri/gen/android", file=sys.stderr)
+              sys.exit(1)
+          text = p.read_text(encoding="utf-8")
+          # Java 8+ bytecode in Tauri/plugin AARs references java.lang.BootstrapMethodError,
+          # which does not exist below API 26 -> NoClassDefFoundError crash on Android 7.x.
+          # Core library desugaring backports it; minSdk 24 stays.
+          if "isCoreLibraryDesugaringEnabled" not in text:
+              m = re.search(r"^([ \t]*)targetCompatibility = JavaVersion\.VERSION_1_8[ \t]*$", text, re.M)
+              if not m:
+                  print("ERROR: no targetCompatibility JavaVersion.VERSION_1_8 line in build.gradle.kts", file=sys.stderr)
+                  sys.exit(1)
+              indent = m.group(1)
+              text = text[:m.end()] + f"\n{indent}isCoreLibraryDesugaringEnabled = true" + text[m.end():]
+              print("core library desugaring enabled")
+          else:
+              print("core library desugaring already enabled")
+          if "desugar_jdk_libs" not in text:
+              d = re.search(r"^([ \t]*)dependencies\s*\{\s*$", text, re.M)
+              if not d:
+                  print("ERROR: no dependencies block in build.gradle.kts", file=sys.stderr)
+                  sys.exit(1)
+              indent = d.group(1)
+              text = text[:d.end()] + f'\n{indent}    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")' + text[d.end():]
+              print("desugar_jdk_libs dependency added")
+          else:
+              print("desugar_jdk_libs already present")
+          p.write_text(text, encoding="utf-8")
+          PY
+
       - name: Build Android APK
         run: cd apps/android && npx tauri android build --apk
 
@@ -382,15 +425,17 @@ jobs:
       - name: Verify APK signature and manifest (fail on unsigned/corrupt output)
         run: |
           export PATH="$ANDROID_HOME/build-tools/34.0.0:$ANDROID_HOME/build-tools/33.0.0:$PATH"
-          APK=$(find apps/android/src-tauri/gen/android/app/build/outputs -type f -name 'kwl-video-downloader-*.apk' | sort | head -n1)
+          APK=$(find apps/android/src-tauri/gen/android/app/build/outputs -type f -name 'KWL-Video-Downloader-*.apk' | sort | head -n1)
           if [ -z "$APK" ]; then
-            echo "ERROR: no kwl-video-downloader-*.apk found" >&2
+            echo "ERROR: no KWL-Video-Downloader-*.apk found" >&2
             find apps/android/src-tauri/gen/android/app/build/outputs -type f | sort
             exit 1
           fi
           echo "Verifying $APK"
           apksigner verify --print-certs "$APK"
           aapt dump badging "$APK" | grep -E "^(package|application|launchable-activity)" || true
+          echo "--- packaged icons + native libs ---"
+          unzip -l "$APK" | grep -iE "mipmap|lib/.*\.so" | sort
           ls -la "$APK"
 
       - name: Upload Android artifacts
@@ -399,7 +444,7 @@ jobs:
           name: android
           if-no-files-found: error
           path: |
-            apps/android/src-tauri/gen/android/app/build/outputs/apk/**/kwl-video-downloader-*.apk
+            apps/android/src-tauri/gen/android/app/build/outputs/apk/**/KWL-Video-Downloader-*.apk
 
   release:
     name: Publish GitHub Release

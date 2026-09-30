@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { EntitlementService } from '@kwl/shared';
 import { getAppShellState } from '../app';
 import { analyzeUrl, analyzePlaylist, cancelDownload, clearDownloadHistory, cleanupBrokenFiles, deleteDownloadHistory, deleteHistoryByUrl, getAppInfo, getDownloadHistory, getDownloadJob, openMediaFile, pauseDownload, resumeDownload, revealMediaInExplorer, startDownload, startupToolCheck, validateUrl, type DownloadHistoryEntry, type DownloadJobStatus } from '../native/tauriBridge';
-import { canAddToQueue, describeExistingDownload, findExistingDownload, formatOptionsFor, getSelectedFormatSize, getStepsForMedia, isAnalyzableUrl, nextWizardStep, parseDimension, prevWizardStep, qualityOptionsFor, qualityTiersWithDimensions, type FlowAnalysis, type FlowResolution, type WizardStepId } from './downloadFlow';
+import { canAddToQueue, describeExistingDownload, findExistingDownload, formatBytesForDisplay, formatOptionsFor, getSelectedFormatSize, getStepsForMedia, isAnalyzableUrl, nextWizardStep, parseDimension, prevWizardStep, qualityOptionsFor, qualityTiersWithDimensions, type FlowAnalysis, type FlowResolution, type WizardStepId } from './downloadFlow';
 import { useLanguage } from './hooks/useTranslations';
 import { DownloaderView, type DownloaderViewProps } from './components/DownloaderView';
 import { QueueView } from './views/QueueView';
@@ -158,6 +158,10 @@ function AppContent() {
   const [lastAnalyzeResult, setLastAnalyzeResult] = useState<null | { kind: 'single' | 'playlist'; count: number; label: string }>(null);
   const [updateAvailable, setUpdateAvailable] = useState<{ version: string; update: Awaited<ReturnType<typeof check>> } | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [updateProgress, setUpdateProgress] = useState<{ downloaded: number; total: number | null } | null>(null);
+  const updateDownloaded = updateProgress?.downloaded ?? 0;
+  const updateTotal = updateProgress?.total ?? null;
+  const updatePercent = updateTotal && updateTotal > 0 ? Math.min(100, Math.round((updateDownloaded / updateTotal) * 100)) : null;
   const [bootReady, setBootReady] = useState(false);
   const [bootGone, setBootGone] = useState(false);
   const bootMarks = useRef({ tools: false, history: false });
@@ -1277,16 +1281,25 @@ function AppContent() {
       return;
     }
     setIsUpdating(true);
+    setUpdateProgress({ downloaded: 0, total: null });
     try {
       showToast(language === 'bn' ? 'আপডেট ডাউনলোড হচ্ছে...' : 'Downloading update...', 'success', 2000);
       await updateAvailable.update.downloadAndInstall((ev) => {
-        if (ev.event === 'Started') showToast(language === 'bn' ? 'ডাউনলোড শুরু...' : 'Download started...', 'success', 1500);
+        if (ev.event === 'Started') {
+          showToast(language === 'bn' ? 'ডাউনলোড শুরু...' : 'Download started...', 'success', 1500);
+          setUpdateProgress({ downloaded: 0, total: ev.data.contentLength ?? null });
+        } else if (ev.event === 'Progress') {
+          const chunk = ev.data.chunkLength;
+          setUpdateProgress((prev) => ({ downloaded: (prev?.downloaded ?? 0) + chunk, total: prev?.total ?? null }));
+        }
       });
+      setUpdateProgress((prev) => (prev && prev.total ? { downloaded: prev.total, total: prev.total } : prev));
       showToast(language === 'bn' ? 'ইনস্টল হয়েছে — রিস্টার্ট হচ্ছে...' : 'Update installed — restarting...', 'success', 1500);
       setTimeout(() => relaunch(), 800);
     } catch (e) {
       showToast(getFriendlyErrorMessage(e, language === 'bn' ? 'আপডেট ব্যর্থ হয়েছে। পরে আবার চেষ্টা করুন।' : 'Update failed. Please try again later.'), 'error', 4000);
       setIsUpdating(false);
+      setUpdateProgress(null);
     }
   };
   const handleCancelUpdate = () => {
@@ -1324,8 +1337,24 @@ function AppContent() {
         <div className="fixed inset-0 z-[998] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-[6px]" aria-hidden="true" />
           <div className="relative w-full max-w-[400px] rounded-2xl border border-sky-400/30 bg-slate-900/95 p-6 shadow-xl text-center">
-            <svg className="h-8 w-8 animate-spin text-sky-400 mx-auto" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.25"/><path d="M12 2 a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/></svg>
+            {updatePercent !== null ? (
+              <p className="text-3xl font-extrabold tabular-nums text-sky-100" aria-live="polite">{updatePercent}%</p>
+            ) : (
+              <svg className="h-8 w-8 animate-spin text-sky-400 mx-auto" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.25"/><path d="M12 2 a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/></svg>
+            )}
             <p className="mt-3 text-sm font-bold text-sky-100">{language === 'bn' ? 'আপডেট ডাউনলোড হচ্ছে...' : 'Downloading update...'}</p>
+            <div className="mt-4 h-2 w-full overflow-hidden rounded-full relative bg-slate-700" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={updatePercent ?? undefined} aria-label={language === 'bn' ? 'আপডেট ডাউনলোড প্রগ্রেস' : 'Update download progress'}>
+              {updatePercent !== null ? (
+                <div className="h-full bg-sky-500 transition-all duration-300 ease-out" style={{ width: `${updatePercent}%` }} />
+              ) : (
+                <div className="h-full w-1/3 bg-sky-500 absolute inset-y-0" style={{ animation: 'shimmer 1.2s ease-in-out infinite' }} />
+              )}
+            </div>
+            <p className="mt-2 text-xs tabular-nums text-slate-300" aria-live="polite">
+              {updateTotal && updateTotal > 0
+                ? `${formatBytesForDisplay(updateDownloaded) ?? '…'} / ${formatBytesForDisplay(updateTotal) ?? '…'}`
+                : `${formatBytesForDisplay(updateDownloaded) ?? '…'} ${language === 'bn' ? 'ডাউনলোড হয়েছে' : 'downloaded'}`}
+            </p>
             <p className="mt-1 text-xs text-slate-400">{language === 'bn' ? 'উইন্ডো বন্ধ করবেন না' : 'Do not close the window'}</p>
           </div>
         </div>

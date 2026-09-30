@@ -4,7 +4,26 @@ All notable changes to KWL Video Downloader are documented in this file.
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [Unreleased] - Android install repair + icon unify
+## [1.0.9] - 2026-09-30
+
+### Fixed
+
+- Android 7.x white-screen crash: `java.lang.NoClassDefFoundError:
+  BootstrapMethodError` in `TauriActivity.onCreate` (proven by on-device
+  logcat) — core library desugaring enabled in CI (`desugar_jdk_libs`),
+  minSdk 24 kept
+- Launcher icon background `#fff` → brand dark navy `#0a1130` (white
+  corners showed under shaped masks); CI now dumps generated res icons +
+  packaged mipmap/native-lib entries as proof
+
+## [Unreleased] - Android install repair + icon unify + updater progress
+
+### Added
+
+- Updater `Downloading update...` overlay now shows live progress in all
+  four apps: big percent + determinate bar + `downloaded / total` sizes
+  from the updater `Started`/`Progress` events (EN+BN inline); unknown
+  total falls back to the existing shimmer bar + downloaded MB
 
 ### Fixed
 
@@ -14,7 +33,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Android signing is stable across releases when `KWL_ANDROID_KEYSTORE_*`
   secrets are set (throwaway debug key remains the fallback); CI now fails
   loud on unsigned output via `apksigner verify` + `aapt dump badging`, and
-  only the signed `kwl-video-downloader-*.apk` is uploaded
+  only the signed `KWL-Video-Downloader-*.apk` is uploaded
 - Linux shipped a different logo (`icon.png`/`icon.ico` did not match the
   other three apps and the 32px/128px/icns files were missing): replaced
   with the shared KWL set, icon array unified to the same 5-file list on

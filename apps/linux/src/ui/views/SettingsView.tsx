@@ -55,7 +55,7 @@ export const SettingsView = ({ outputDirectory = '', defaultOutputFolder = '', o
   const [pendingUpdate, setPendingUpdate] = useState<PendingUpdate>(null);
   const [updateError, setUpdateError] = useState<string | null>(null);
   const [updateVersion, setUpdateVersion] = useState<string | null>(null);
-  const [currentVersion, setCurrentVersion] = useState('1.0.8');
+  const [currentVersion, setCurrentVersion] = useState('1.0.9');
 
   // Show current app version and auto-detected update from App.tsx
   useEffect(() => {
