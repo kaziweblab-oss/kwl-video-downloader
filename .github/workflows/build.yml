@@ -397,11 +397,12 @@ jobs:
           # which does not exist below API 26 -> NoClassDefFoundError crash on Android 7.x.
           # Core library desugaring backports it; minSdk 24 stays.
           if "isCoreLibraryDesugaringEnabled" not in text:
-              m = re.search(r"^([ \t]*)targetCompatibility = JavaVersion\.VERSION_1_8[ \t]*$", text, re.M)
+              m = re.search(r"^([ \t]*)compileOptions\s*\{\s*$", text, re.M)
               if not m:
-                  print("ERROR: no targetCompatibility JavaVersion.VERSION_1_8 line in build.gradle.kts", file=sys.stderr)
+                  print("ERROR: no compileOptions block in build.gradle.kts; file content:", file=sys.stderr)
+                  print(text, file=sys.stderr)
                   sys.exit(1)
-              indent = m.group(1)
+              indent = m.group(1) + "    "
               text = text[:m.end()] + f"\n{indent}isCoreLibraryDesugaringEnabled = true" + text[m.end():]
               print("core library desugaring enabled")
           else:
@@ -409,15 +410,19 @@ jobs:
           if "desugar_jdk_libs" not in text:
               d = re.search(r"^([ \t]*)dependencies\s*\{\s*$", text, re.M)
               if not d:
-                  print("ERROR: no dependencies block in build.gradle.kts", file=sys.stderr)
+                  print("ERROR: no dependencies block in build.gradle.kts; file content:", file=sys.stderr)
+                  print(text, file=sys.stderr)
                   sys.exit(1)
-              indent = d.group(1)
-              text = text[:d.end()] + f'\n{indent}    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")' + text[d.end():]
+              indent = d.group(1) + "    "
+              text = text[:d.end()] + f'\n{indent}coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")' + text[d.end():]
               print("desugar_jdk_libs dependency added")
           else:
               print("desugar_jdk_libs already present")
           p.write_text(text, encoding="utf-8")
-          PY
+          print("--- patched regions ---")
+          for line in text.splitlines():
+              if "esugaring" in line or "compileOptions" in line:
+                  print("  " + line.strip())
 
       - name: Build Android APK
         run: cd apps/android && npx tauri android build --apk
