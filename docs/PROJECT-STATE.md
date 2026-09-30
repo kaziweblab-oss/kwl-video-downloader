@@ -100,6 +100,7 @@ LAST VALIDATION (local machine, 2026-09-30):
 - PASS: 4x `tauri.conf.json` parse — version 1.0.8, `bundle.android {24, 9}`, 5-file icon array everywhere
 - PASS: linux `icon.png` hash now equals desktop/macos/android shared KWL set
 - NOT RUN: CI tag build v1.0.8; device APK install; per-platform logo screenshots
+- 2026-09-30 PM: v1.0.8 CI run #67 android job FAILED at `gradlew` script compilation (`java.util.Properties()` unresolved in Kotlin DSL — patch missed imports); fixed with explicit imports + `getProperty()` + separate `keyPassword` prop; re-pushing same tag
 
 TESTS: PASS (65 vitest; 91 cargo / 3 ignored)
 TYPECHECK: PASS

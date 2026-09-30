@@ -312,11 +312,12 @@ jobs:
           if [ -n "$KWL_ANDROID_KEYSTORE_BASE64" ]; then
             echo "$KWL_ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/kwl-release.keystore"
             ALIAS="${KWL_ANDROID_KEY_ALIAS:-kwlrelease}"
-            printf 'keyAlias=%s\npassword=%s\nstoreFile=%s/kwl-release.keystore\n' "$ALIAS" "$KWL_ANDROID_KEYSTORE_PASSWORD" "$RUNNER_TEMP" > "$GEN/keystore.properties"
+            KP="${KWL_ANDROID_KEY_PASSWORD:-$KWL_ANDROID_KEYSTORE_PASSWORD}"
+            printf 'keyAlias=%s\npassword=%s\nkeyPassword=%s\nstoreFile=%s/kwl-release.keystore\n' "$ALIAS" "$KWL_ANDROID_KEYSTORE_PASSWORD" "$KP" "$RUNNER_TEMP" > "$GEN/keystore.properties"
             echo "keystore.properties written (persistent release key from secrets)"
           else
             keytool -genkey -v -keystore "$RUNNER_TEMP/kwl-debug.keystore" -storetype JKS -keyalg RSA -keysize 2048 -validity 10000 -alias kwldebug -storepass android -keypass android -dname "CN=KWL, OU=KWL Video Downloader, O=KWL, L=Dhaka, C=BD"
-            printf 'keyAlias=kwldebug\npassword=android\nstoreFile=%s/kwl-debug.keystore\n' "$RUNNER_TEMP" > "$GEN/keystore.properties"
+            printf 'keyAlias=kwldebug\npassword=android\nkeyPassword=android\nstoreFile=%s/kwl-debug.keystore\n' "$RUNNER_TEMP" > "$GEN/keystore.properties"
             echo "keystore.properties written (throwaway debug key, device-installable; updates across releases need the persistent secret)"
           fi
 
@@ -329,18 +330,25 @@ jobs:
               print("ERROR: build.gradle.kts not found — 'tauri android init' did not generate apps/android/src-tauri/gen/android", file=sys.stderr)
               sys.exit(1)
           text = p.read_text(encoding="utf-8")
+          # Kotlin DSL shadows `java.*` with the Java plugin extension, so
+          # fully-qualified java.util/java.io references do NOT compile.
+          # Import once at the top and use simple names + getProperty().
+          for imp in ("import java.io.FileInputStream", "import java.util.Properties"):
+              if imp not in text:
+                  text = imp + "\n" + text
+                  print(f"added {imp}")
           if "keystore.properties" not in text:
               block = """    signingConfigs {
                   create("release") {
                       val keystorePropertiesFile = rootProject.file("keystore.properties")
-                      val keystoreProperties = java.util.Properties()
+                      val keystoreProperties = Properties()
                       if (keystorePropertiesFile.exists()) {
-                          keystoreProperties.load(java.io.FileInputStream(keystorePropertiesFile))
+                          FileInputStream(keystorePropertiesFile).use { keystoreProperties.load(it) }
                       }
-                      keyAlias = keystoreProperties["keyAlias"] as String
-                      keyPassword = keystoreProperties["password"] as String
-                      storeFile = file(keystoreProperties["storeFile"] as String)
-                      storePassword = keystoreProperties["password"] as String
+                      keyAlias = keystoreProperties.getProperty("keyAlias", "")
+                      keyPassword = keystoreProperties.getProperty("keyPassword", keystoreProperties.getProperty("password", ""))
+                      storeFile = file(keystoreProperties.getProperty("storeFile", ""))
+                      storePassword = keystoreProperties.getProperty("password", "")
                   }
               }
 
