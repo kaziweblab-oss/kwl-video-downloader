@@ -426,3 +426,54 @@ export type ReportInput = {
 export async function sendReport(report: ReportInput): Promise<void> {
   return invokeTauri<void>('send_report', { report });
 }
+
+export type NexusConfig = {
+  baseUrl: string;
+  apiKey: string;
+  appId: string;
+};
+
+export type NexusTutorialSection = {
+  heading: string;
+  body: string;
+};
+
+export type NexusTutorial = {
+  title: string;
+  description: string;
+  videoUrl: string;
+  sections: NexusTutorialSection[];
+  appName: string;
+};
+
+export type NexusReply = {
+  id: string;
+  title: string;
+  status: string;
+  reply: string;
+  createdAt: string;
+};
+
+export function toNexusConfig(baseUrl: string, apiKey: string, appId: string): NexusConfig {
+  return { baseUrl: baseUrl.trim(), apiKey: apiKey.trim(), appId: appId.trim() };
+}
+
+export function isNexusConfigured(config: NexusConfig): boolean {
+  return config.apiKey.length > 0 && config.appId.length > 0;
+}
+
+export async function nexusPing(config: NexusConfig): Promise<string> {
+  return invokeTauri<string>('nexus_ping', { config });
+}
+
+export async function nexusSyncFeatures(config: NexusConfig): Promise<string> {
+  return invokeTauri<string>('nexus_sync_features', { config });
+}
+
+export async function nexusGetTutorial(config: NexusConfig): Promise<NexusTutorial> {
+  return invokeTauri<NexusTutorial>('nexus_get_tutorial', { config });
+}
+
+export async function nexusListFeedback(config: NexusConfig): Promise<NexusReply[]> {
+  return invokeTauri<NexusReply[]>('nexus_list_feedback', { config });
+}

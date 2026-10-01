@@ -232,7 +232,7 @@ jobs:
       - name: Init Android project
         run: cd apps/android && npx tauri android init --ci
 
-      - name: Patch APK output name to KWL-Video-Downloader-{version}.apk
+      - name: Patch APK output name to KWL Video Downloader-{version}.apk
         run: |
           python3 << 'PY'
           import pathlib
@@ -242,7 +242,7 @@ jobs:
                   print(f"skip missing {p}")
                   continue
               text = fp.read_text(encoding="utf-8")
-              if "KWL-Video-Downloader" in text:
+              if "KWL Video Downloader" in text:
                   print(f"already patched {p}")
                   continue
               old = "    buildFeatures {\n        buildConfig = true\n    }\n}"
@@ -250,13 +250,13 @@ jobs:
                   buildConfig = true
               }
 
-              // Permanent APK name: KWL-Video-Downloader-{versionName}.apk (fallback 1.0.9)
+              // Permanent APK name: KWL Video Downloader-{versionName}.apk (fallback 1.0.10)
               applicationVariants.all {
                   val variant = this
                   outputs.all {
                       val output = this as com.android.build.gradle.internal.api.BaseVariantOutputImpl
-                      val ver = variant.versionName.ifEmpty { "1.0.9" }
-                      output.outputFileName = "KWL-Video-Downloader-${ver}.apk"
+                      val ver = variant.versionName.ifEmpty { "1.0.10" }
+                      output.outputFileName = "KWL Video Downloader-${ver}.apk"
                   }
               }
           }"""
@@ -270,13 +270,13 @@ jobs:
                       import re
                       m = re.search(r"(buildFeatures\s*\{\s*buildConfig\s*=\s*true\s*\})", text)
                       if m:
-                          insert = m.group(1) + "\n\n    // Permanent APK name\n    applicationVariants.all {\n        val variant = this\n        outputs.all {\n            val output = this as com.android.build.gradle.internal.api.BaseVariantOutputImpl\n            val ver = variant.versionName.ifEmpty { \"1.0.9\" }\n            output.outputFileName = \"KWL-Video-Downloader-${ver}.apk\"\n        }\n    }"
+                          insert = m.group(1) + "\n\n    // Permanent APK name\n    applicationVariants.all {\n        val variant = this\n        outputs.all {\n            val output = this as com.android.build.gradle.internal.api.BaseVariantOutputImpl\n            val ver = variant.versionName.ifEmpty { \"1.0.10\" }\n            output.outputFileName = \"KWL Video Downloader-${ver}.apk\"\n        }\n    }"
                           text = text.replace(m.group(1), insert, 1)
                           fp.write_text(text, encoding="utf-8")
                           print(f"fallback patched {p}")
           PY
           echo "Patched build.gradle.kts files:"
-          grep -n "KWL-Video-Downloader" apps/desktop/src-tauri/gen/android/app/build.gradle.kts apps/android/src-tauri/gen/android/app/build.gradle.kts 2>/dev/null || echo "no gen files yet (will be patched on local builds)"
+          grep -n "KWL Video Downloader" apps/desktop/src-tauri/gen/android/app/build.gradle.kts apps/android/src-tauri/gen/android/app/build.gradle.kts 2>/dev/null || echo "no gen files yet (will be patched on local builds)"
 
       - name: Stage bundled native tools into the generated Android project
         run: |
@@ -434,9 +434,9 @@ jobs:
       - name: Verify APK signature and manifest (fail on unsigned/corrupt output)
         run: |
           export PATH="$ANDROID_HOME/build-tools/34.0.0:$ANDROID_HOME/build-tools/33.0.0:$PATH"
-          APK=$(find apps/android/src-tauri/gen/android/app/build/outputs -type f -name 'KWL-Video-Downloader-*.apk' | sort | head -n1)
+          APK=$(find apps/android/src-tauri/gen/android/app/build/outputs -type f -name 'KWL Video Downloader-*.apk' | sort | head -n1)
           if [ -z "$APK" ]; then
-            echo "ERROR: no KWL-Video-Downloader-*.apk found" >&2
+            echo "ERROR: no KWL Video Downloader-*.apk found" >&2
             find apps/android/src-tauri/gen/android/app/build/outputs -type f | sort
             exit 1
           fi
@@ -453,7 +453,7 @@ jobs:
           name: android
           if-no-files-found: error
           path: |
-            apps/android/src-tauri/gen/android/app/build/outputs/apk/**/KWL-Video-Downloader-*.apk
+            apps/android/src-tauri/gen/android/app/build/outputs/apk/**/KWL Video Downloader-*.apk
 
   release:
     name: Publish GitHub Release

@@ -8,6 +8,12 @@ export default defineConfig({
   // until upstream updates — warnings from that plugin are harmless and do not break the build.
   // Our config uses the new `oxc` and `optimizeDeps.rolldownOptions` keys.
   oxc: {},
+  build: {
+    // Downlevel syntax (no `?.`/`??` in output) so old system WebViews
+    // (e.g. Chrome 69 on frozen emulator images) can still parse the bundle.
+    // No modern runtime APIs are used anywhere (audited), so no polyfills needed.
+    target: 'es2019',
+  },
   optimizeDeps: {
     // rolldown replaces esbuild for dep optimization in Vite 8+
     rolldownOptions: {},

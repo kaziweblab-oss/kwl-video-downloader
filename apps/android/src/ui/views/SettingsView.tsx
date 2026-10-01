@@ -47,7 +47,7 @@ export interface SettingsViewProps {
 export const SettingsView = ({ outputDirectory = '', defaultOutputFolder = '', onOutputDirectoryChange, onBrowse }: SettingsViewProps) => {
   const t = useTranslations();
   const { language, setLanguage } = useLanguage();
-  const { settings, setMaxConcurrent, setAutoUpdate, setAutoLaunch, resolvedTheme } = useSettings();
+  const { settings, setMaxConcurrent, setAutoUpdate, setAutoLaunch, setNexusBaseUrl, setNexusApiKey, setNexusAppId, resolvedTheme } = useSettings();
   const isDark = resolvedTheme === 'dark';
   const isAndroid = typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent);
   const [concurrentModalOpen, setConcurrentModalOpen] = useState(false);
@@ -55,7 +55,36 @@ export const SettingsView = ({ outputDirectory = '', defaultOutputFolder = '', o
   const [pendingUpdate, setPendingUpdate] = useState<PendingUpdate>(null);
   const [updateError, setUpdateError] = useState<string | null>(null);
   const [updateVersion, setUpdateVersion] = useState<string | null>(null);
-  const [currentVersion, setCurrentVersion] = useState('1.0.9');
+  const [currentVersion, setCurrentVersion] = useState('1.0.10');
+  const [nexusStatus, setNexusStatus] = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle');
+  const [nexusError, setNexusError] = useState<string | null>(null);
+
+  const handleNexusConnect = async () => {
+    const { toNexusConfig, isNexusConfigured, nexusPing, nexusSyncFeatures } = await import('../../native/tauriBridge');
+    const config = toNexusConfig(settings.nexusBaseUrl, settings.nexusApiKey, settings.nexusAppId);
+    if (!isNexusConfigured(config)) {
+      setNexusStatus('error');
+      setNexusError(t.nexusNotConfigured);
+      return;
+    }
+    if (!('__TAURI_INTERNALS__' in globalThis)) {
+      setNexusStatus('error');
+      setNexusError(t.updateBrowserOnly);
+      return;
+    }
+    setNexusStatus('connecting');
+    setNexusError(null);
+    try {
+      await nexusPing(config);
+      try {
+        await nexusSyncFeatures(config);
+      } catch {}
+      setNexusStatus('connected');
+    } catch {
+      setNexusStatus('error');
+      setNexusError(t.nexusConnectFailed);
+    }
+  };
 
   // Show current app version and auto-detected update from App.tsx
   useEffect(() => {
@@ -361,6 +390,68 @@ export const SettingsView = ({ outputDirectory = '', defaultOutputFolder = '', o
             {updateState === 'error' && updateError && (
               <p className="mt-2 text-xs text-red-400">{updateError}</p>
             )}
+          </div>
+        </div>
+      </Panel>
+
+      <Panel>
+        <PanelHeader label={t.nexusTitle} count={null} compact>
+          <h3 className="m-0 text-lg font-bold tracking-tight">{t.nexusTitle}</h3>
+        </PanelHeader>
+
+        <div className="space-y-4">
+          <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{t.nexusDesc}</p>
+          <div>
+            <label className={`mb-2.5 block font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.nexusBaseUrlLabel}</label>
+            <input
+              type="text"
+              value={settings.nexusBaseUrl}
+              onChange={(e) => setNexusBaseUrl(e.target.value)}
+              placeholder={t.nexusBaseUrlPh}
+              autoComplete="off"
+              spellCheck={false}
+              className={`w-full min-w-[200px] flex-1 rounded-xl border px-4 py-[0.9rem] outline-none transition focus:border-sky-300/90 focus:shadow-[0_0_0_3px_rgba(56,189,248,0.18)] ${isDark ? 'border-slate-400/40 bg-slate-900/80 text-slate-50' : 'border-slate-300 bg-white text-slate-800 placeholder:text-slate-400'}`}
+            />
+          </div>
+          <div>
+            <label className={`mb-2.5 block font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.nexusApiKeyLabel}</label>
+            <input
+              type="password"
+              value={settings.nexusApiKey}
+              onChange={(e) => setNexusApiKey(e.target.value)}
+              placeholder={t.nexusApiKeyPh}
+              autoComplete="off"
+              spellCheck={false}
+              className={`w-full min-w-[200px] flex-1 rounded-xl border px-4 py-[0.9rem] outline-none transition focus:border-sky-300/90 focus:shadow-[0_0_0_3px_rgba(56,189,248,0.18)] ${isDark ? 'border-slate-400/40 bg-slate-900/80 text-slate-50' : 'border-slate-300 bg-white text-slate-800 placeholder:text-slate-400'}`}
+            />
+          </div>
+          <div>
+            <label className={`mb-2.5 block font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.nexusAppIdLabel}</label>
+            <input
+              type="text"
+              value={settings.nexusAppId}
+              onChange={(e) => setNexusAppId(e.target.value)}
+              placeholder={t.nexusAppIdPh}
+              autoComplete="off"
+              spellCheck={false}
+              className={`w-full min-w-[200px] flex-1 rounded-xl border px-4 py-[0.9rem] outline-none transition focus:border-sky-300/90 focus:shadow-[0_0_0_3px_rgba(56,189,248,0.18)] ${isDark ? 'border-slate-400/40 bg-slate-900/80 text-slate-50' : 'border-slate-300 bg-white text-slate-800 placeholder:text-slate-400'}`}
+            />
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              disabled={nexusStatus === 'connecting'}
+              onClick={handleNexusConnect}
+              className="bg-[linear-gradient(135deg,#38bdf8_0%,#2563eb_100%)] px-[1.2rem] py-[0.9rem] text-slate-50 rounded-xl border border-transparent font-bold transition hover:-translate-y-px disabled:pointer-events-none disabled:translate-y-0 disabled:opacity-60 max-[760px]:w-full max-[760px]:px-4 max-[760px]:py-[0.78rem] inline-flex items-center gap-2"
+            >
+              {nexusStatus === 'connecting' && (
+                <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.25"/><path d="M12 2 a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/></svg>
+              )}
+              {nexusStatus === 'connecting' ? t.nexusConnecting : t.nexusConnect}
+            </button>
+            <span className={`text-sm ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+              {nexusStatus === 'connected' ? t.nexusConnected : nexusStatus === 'error' ? (nexusError ?? t.nexusConnectFailed) : t.nexusNotConfigured}
+            </span>
           </div>
         </div>
       </Panel>

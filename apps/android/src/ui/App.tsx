@@ -417,6 +417,25 @@ function AppContent() {
       });
   }, []);
 
+  // Nexus heartbeat on startup — silent, fire-and-forget. The dashboard
+  // marks the app connected when this ping arrives with a valid key.
+  useEffect(() => {
+    if (!settings.nexusApiKey.trim() || !settings.nexusAppId.trim()) return;
+    if (!('__TAURI_INTERNALS__' in globalThis)) return;
+    void (async () => {
+      try {
+        const { toNexusConfig, isNexusConfigured, nexusPing, nexusSyncFeatures } = await import('../native/tauriBridge');
+        const config = toNexusConfig(settings.nexusBaseUrl, settings.nexusApiKey, settings.nexusAppId);
+        if (!isNexusConfigured(config)) return;
+        await nexusPing(config);
+        try {
+          await nexusSyncFeatures(config);
+        } catch {}
+      } catch {}
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Boot splash: visible from first paint until core startup work settles
   // (tools + history) or a 4s cap — the window never looks frozen.
   useEffect(() => {

@@ -8,7 +8,17 @@ This file is the conversational memory layer for coding agents. Read it first, t
 - Append a new "Last session" entry (move the old one into "Earlier sessions") at the end of meaningful work.
 - Never delete accepted decisions; they are recorded in `DECISION-LOG.md`.
 
-## Last session: 2026-09-30 (Android corrupt-install repair + icon unify)
+## Last session: 2026-10-01 (Nexus settings connection)
+
+### What we did
+
+- **Wired Nexus end-to-end (settings-based):** `nexus` Rust module registered in all 4 apps (`nexus_ping/sync_features/get_tutorial/list_feedback`, explicit `NexusConfig` with env fallback); Settings → Nexus panel (URL/key/ID, EN+BN) in all 4 apps; silent startup ping + features sync when configured. GitHub APIKEY/APPID/BASEURL secrets stay unused (nothing baked into binary).
+- **Gates PASS:** tsc x4, vitest 67/67 (incl. new nexus-config + parity), cargo desktop 99/0/3 (8 new nexus tests), linux/macos/android `cargo check` clean.
+- **Pending:** v1.0.10 batch (minSdk 26 + icon regen + spaces + Nexus + updater progress + es2019) — tagging this session.
+
+## Earlier sessions
+
+### 2026-09-30 (Android corrupt-install repair + icon unify + v1.0.9 crash diag)
 
 ### What we did
 
@@ -19,7 +29,7 @@ This file is the conversational memory layer for coding agents. Read it first, t
 - **Left for human:** `KWL_ANDROID_KEYSTORE_*` secrets (one-time), commit + tag v1.0.8, uninstall old APK then device install test, per-platform logo screenshots. Untracked `nexus.rs` draft left unwired (not compiled).
 - **PM follow-up (same day):** v1.0.8 CI android job failed — `java.util.Properties()` doesn't compile in Gradle Kotlin DSL (`java` shadowed); fixed with explicit imports + `getProperty()` + separate `keyPassword` prop. Committed `4f8c016`, pushed `main`, force-moved tag `v1.0.8` → new CI run. Gates: vitest 65/65, tsc clean.
 - **Updater progress overlay:** `Downloading update...` modal now shows live percent + bar + MB sizes (all 4 App.tsx, EN+BN, shimmer fallback when total unknown). tsc x4 clean, vitest 65/65 PASS. Rides v1.0.9 tag.
-- **v1.0.9 crash diag (logcat, API-25 emulator):** app dies in `TauriActivity.onCreate` — `NoClassDefFoundError: BootstrapMethodError` (API < 26 only). WebView fine (Chrome 119). Fix: CI desugar patch + res/ABI dump proof steps; icon bg `#0a1130`; version 1.0.9/versionCode 10. Gates: tsc x4, vitest 65/65, cargo 91/0/3. Committed `7f1446c`, tag `v1.0.9` pushed.
+- **API-26 boundary test (Studio emulator, this session):** v1.0.9 installs + `Displayed MainActivity`, zero `BootstrapMethodError` — crash is API ≤25-only, minSdk-26 boundary proven correct. Screen stayed blank: WebView is frozen **Chrome 69**, dist JS kept `?.`/`??` (no build target set) → parse fail with title-only DOM. Fix: `build.target es2019` in all 4 vite configs (runtime-API audit clean, rebuilt android dist has zero `?.`/`??`). Joins v1.0.10 batch; CI APK + emulator render will prove it.
 - **v1.0.9 tag follow-ups:** res-dump check asserted wrong path (`mipmap-anydpi-v26` — Tauri uses `drawable-v24`+`drawable`) and failed the build before desugar ran; corrected + background `cat` proof. `ci.yml:65` quoted (was invalid YAML on every push). Tag `v1.0.9` deleted + re-pushed at `81aa2a9` for clean re-run.
 - **APK filename:** professional `KWL-Video-Downloader-{version}.apk` (rename patch + already-patched check + verify/upload globs + docs). Applies from next tag build; published v1.0.8 asset keeps old name.
 

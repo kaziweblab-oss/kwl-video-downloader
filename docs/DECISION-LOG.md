@@ -1,6 +1,10 @@
 # Decision Log
 
-## 2026-09-30
+## 2026-10-01
+### Decision: minSdk 24 → 26 (drop Android 7.x) — user-approved
+v1.0.9 (with desugaring) still crashes identically on API 25 (`BootstrapMethodError`, proven twice by logcat): the reference lives in precompiled Tauri/plugin bytecode outside desugar's reach. API-26 emulator run proves the boundary: `Displayed MainActivity`, zero crash. Android 7.x (~2-3% devices) dropped; API-25 Nougat emulator retired from testing (Studio `KWL_API26` Oreo device is the new floor).
+### Decision: settings-based Nexus connection (no baked secrets)
+GitHub `APIKEY/APPID/BASEURL` secrets were inert (nothing read those names) and the dashboard waits for a runtime ping, so the app now owns the connection: Settings → Nexus panel (Base URL + API key + App ID, persisted in app settings, EN+BN), typed `nexus_*` Tauri commands backed by a wired `nexus` Rust module (explicit config wins, process/compile-time env stays as fallback), silent startup ping + features sync when configured. Nothing is baked into the binary; offline behavior unchanged (all Nexus calls fail silent, app fully usable).
 ### Decision: core library desugaring for Android 7.x (BootstrapMethodError crash)
 On-device logcat on Android 7.1.1 proved the white screen is a JVM crash, not a WebView or frontend issue: `java.lang.NoClassDefFoundError: Failed resolution of: Ljava/lang/BootstrapMethodError` at `app.tauri.plugin.PluginManager.<clinit>` → `TauriActivity.onCreate`. `BootstrapMethodError` exists only from API 26, so Java 8+ bytecode in Tauri/plugin AARs crashes on API 24/25. CI now patches the generated `build.gradle.kts` (fail-loud): `isCoreLibraryDesugaringEnabled = true` in `compileOptions` + `coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")` in `dependencies`. minSdk 24 kept; the API-25 emulator is the regression test. Fallback if this ever proves insufficient: bump minSdk to 26 (drops Android 7.x).
 ### Decision: dark adaptive-icon background + packaged-icon proof

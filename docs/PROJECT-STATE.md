@@ -1,10 +1,10 @@
 # Project State
 
 CURRENT PHASE:
-v1.0.9 Android 7.x crash fix + icon bg — ready to tag
+v1.0.10 batch — ready to tag
 
 CURRENT TASK:
-Commit + `git tag v1.0.9` + push → CI green → uninstall old APK → install `KWL-Video-Downloader-1.0.9.apk` on API-25 emulator (must OPEN, not white-screen) + real phone launcher screenshot.
+Commit + `git tag v1.0.10` + push → CI green → publish Release → API-26 emulator: install, OPEN (render check), icon verify → phone launcher screenshot.
 
 COMPLETED:
 - Phase 0: Repository bootstrap
@@ -133,4 +133,4 @@ LAST UPDATED: 2026-09-30
 - Keep the verified runtime/downloader architecture intact and the typed Tauri bridge for native interactions
 
 ## Current version
-1.0.9
+1.0.10

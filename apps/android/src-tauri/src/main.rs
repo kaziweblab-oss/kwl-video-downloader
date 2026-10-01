@@ -137,6 +137,30 @@ fn set_autostart_enabled(enabled: bool) -> Result<bool, String> {
     kwl_video_downloader::autostart::set_autostart_enabled_impl(enabled)
 }
 
+#[tauri::command(rename = "nexus_ping")]
+fn nexus_ping(config: kwl_video_downloader::nexus::NexusConfig) -> Result<String, String> {
+    kwl_video_downloader::nexus::ping_nexus(&config)
+}
+
+#[tauri::command(rename = "nexus_sync_features")]
+fn nexus_sync_features(config: kwl_video_downloader::nexus::NexusConfig) -> Result<String, String> {
+    kwl_video_downloader::nexus::sync_nexus_features(&config)
+}
+
+#[tauri::command(rename = "nexus_get_tutorial")]
+fn nexus_get_tutorial(
+    config: kwl_video_downloader::nexus::NexusConfig,
+) -> Result<kwl_video_downloader::nexus::NexusTutorial, String> {
+    kwl_video_downloader::nexus::fetch_nexus_tutorial(&config)
+}
+
+#[tauri::command(rename = "nexus_list_feedback")]
+fn nexus_list_feedback(
+    config: kwl_video_downloader::nexus::NexusConfig,
+) -> Result<Vec<kwl_video_downloader::nexus::NexusReply>, String> {
+    kwl_video_downloader::nexus::fetch_nexus_feedback(&config)
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
@@ -180,7 +204,11 @@ fn main() {
             delete_version,
             sync_github_release,
             get_autostart_enabled,
-            set_autostart_enabled
+            set_autostart_enabled,
+            nexus_ping,
+            nexus_sync_features,
+            nexus_get_tutorial,
+            nexus_list_feedback
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

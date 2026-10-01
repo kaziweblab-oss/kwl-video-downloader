@@ -4,6 +4,31 @@ All notable changes to KWL Video Downloader are documented in this file.
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.0.10] - 2026-10-01
+
+### Changed
+
+- Android minimum version 24 → 26 (Android 8.0+): Tauri/plugin bytecode
+  references `BootstrapMethodError` (API 26+ only) — white-screen crash on
+  Android 7.x is unfixable by desugaring, proven by on-device logcat
+
+### Fixed
+
+- Launcher icons unified: all densities regenerated from the dark-navy
+  brand tile (mixed old transparent + blue sets replaced) + adaptive
+  background `#0a1130`; CI proves packaged icons in logs
+- APK filename now `KWL Video Downloader-{version}.apk` (published with
+  dots per GitHub asset rules)
+- WebView-proof JS: `build.target es2019` in all apps — no `?.`/`??` in
+  output, renders even on frozen old system WebViews
+- KWL Nexus connection: Settings panel (server URL + API key + App ID),
+  silent startup ping + features sync, tutorial/feedback commands. Secrets
+  stay in app settings — nothing baked into the binary.
+- Updater `Downloading update...` overlay now shows live progress in all
+  four apps: big percent + determinate bar + `downloaded / total` sizes
+  from the updater `Started`/`Progress` events (EN+BN inline); unknown
+  total falls back to the existing shimmer bar + downloaded MB
+
 ## [1.0.9] - 2026-09-30
 
 ### Fixed
@@ -16,14 +41,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   corners showed under shaped masks); CI now dumps generated res icons +
   packaged mipmap/native-lib entries as proof
 
-## [Unreleased] - Android install repair + icon unify + updater progress
-
-### Added
-
-- Updater `Downloading update...` overlay now shows live progress in all
-  four apps: big percent + determinate bar + `downloaded / total` sizes
-  from the updater `Started`/`Progress` events (EN+BN inline); unknown
-  total falls back to the existing shimmer bar + downloaded MB
+## [1.0.8] - 2026-09-30
 
 ### Fixed
 

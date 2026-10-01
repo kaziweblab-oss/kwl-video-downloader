@@ -193,6 +193,19 @@ queueLabel: string;
     updateCheckFailedGeneric: string;
     updateVerifyFailed: string;
     updateBrowserOnly: string;
+    nexusTitle: string;
+    nexusDesc: string;
+    nexusBaseUrlLabel: string;
+    nexusBaseUrlPh: string;
+    nexusApiKeyLabel: string;
+    nexusApiKeyPh: string;
+    nexusAppIdLabel: string;
+    nexusAppIdPh: string;
+    nexusConnect: string;
+    nexusConnecting: string;
+    nexusConnected: string;
+    nexusNotConfigured: string;
+    nexusConnectFailed: string;
     queueTitle: string;
     downloadPending: string;
     pendingCount: string;
@@ -411,6 +424,19 @@ const translations: Record<Language, Translations> = {
     updateCheckFailedGeneric: 'Could not check for updates. Please try again later.',
     updateVerifyFailed: 'Update verification failed — release signature mismatch.',
     updateBrowserOnly: 'Updater only works in the desktop app.',
+    nexusTitle: 'KWL Nexus connection',
+    nexusDesc: 'Connect this app to your Nexus dashboard for features sync, tutorials and reports.',
+    nexusBaseUrlLabel: 'Nexus server URL',
+    nexusBaseUrlPh: 'https://kwl-nexus.onrender.com',
+    nexusApiKeyLabel: 'API key',
+    nexusApiKeyPh: 'Paste API key from Nexus dashboard',
+    nexusAppIdLabel: 'App ID',
+    nexusAppIdPh: 'e.g. kaziweblab-oss-kwl-video-downloader',
+    nexusConnect: 'Connect',
+    nexusConnecting: 'Connecting…',
+    nexusConnected: 'Connected to Nexus',
+    nexusNotConfigured: 'Paste your API key and App ID to connect.',
+    nexusConnectFailed: 'Could not connect. Check the key, ID and URL.',
     queueTitle: 'Queue',
     downloadPending: 'Download pending',
     pendingCount: '{count} pending',
@@ -627,6 +653,19 @@ const translations: Record<Language, Translations> = {
     updateCheckFailedGeneric: 'আপডেট চেক করা যায়নি। পরে আবার চেষ্টা করুন।',
     updateVerifyFailed: 'আপডেট ভেরিফিকেশন ব্যর্থ — রিলিজ ফাইল যাচাই করা যায়নি।',
     updateBrowserOnly: 'আপডেটার শুধু ডেস্কটপ অ্যাপে কাজ করে।',
+    nexusTitle: 'KWL Nexus সংযোগ',
+    nexusDesc: 'ফিচার সিংক, টিউটোরিয়াল ও রিপোর্টের জন্য অ্যাপটি Nexus ড্যাশবোর্ডের সাথে যুক্ত করুন।',
+    nexusBaseUrlLabel: 'Nexus সার্ভার URL',
+    nexusBaseUrlPh: 'https://kwl-nexus.onrender.com',
+    nexusApiKeyLabel: 'API কি',
+    nexusApiKeyPh: 'Nexus ড্যাশবোর্ড থেকে API কি বসান',
+    nexusAppIdLabel: 'App ID',
+    nexusAppIdPh: 'যেমন kaziweblab-oss-kwl-video-downloader',
+    nexusConnect: 'যুক্ত করুন',
+    nexusConnecting: 'যুক্ত হচ্ছে…',
+    nexusConnected: 'Nexus-এ যুক্ত হয়েছে',
+    nexusNotConfigured: 'যুক্ত করতে API কি ও App ID দিন।',
+    nexusConnectFailed: 'যুক্ত হওয়া যায়নি। কি, ID ও URL দেখুন।',
     queueTitle: 'সারি',
     downloadPending: 'ডাউনলোড বাকি',
     pendingCount: '{count}টি বাকি',

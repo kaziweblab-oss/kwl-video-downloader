@@ -8,6 +8,9 @@ export type Settings = {
   theme: ThemeMode;
   autoUpdate: boolean;
   autoLaunch: boolean;
+  nexusBaseUrl: string;
+  nexusApiKey: string;
+  nexusAppId: string;
 };
 
 const DEFAULT_SETTINGS: Settings = {
@@ -16,6 +19,9 @@ const DEFAULT_SETTINGS: Settings = {
   theme: 'system',
   autoUpdate: true,
   autoLaunch: false,
+  nexusBaseUrl: '',
+  nexusApiKey: '',
+  nexusAppId: '',
 };
 
 function getSystemTheme(): 'light' | 'dark' {
@@ -63,14 +69,17 @@ function loadSettings(): Settings {
       const theme: ThemeMode = th === 'light' || th === 'dark' || th === 'system' ? th : 'system';
       const autoUpdate = typeof au === 'boolean' ? au : DEFAULT_SETTINGS.autoUpdate;
       const autoLaunch = typeof al === 'boolean' ? al : DEFAULT_SETTINGS.autoLaunch;
+      const nexusBaseUrl = typeof parsed.nexusBaseUrl === 'string' ? parsed.nexusBaseUrl : DEFAULT_SETTINGS.nexusBaseUrl;
+      const nexusApiKey = typeof parsed.nexusApiKey === 'string' ? parsed.nexusApiKey : DEFAULT_SETTINGS.nexusApiKey;
+      const nexusAppId = typeof parsed.nexusAppId === 'string' ? parsed.nexusAppId : DEFAULT_SETTINGS.nexusAppId;
       if (typeof v === 'number' && v >= 1 && v <= 10 && (lang === 'en' || lang === 'bn')) {
-        return { maxConcurrent: v, language: lang, theme, autoUpdate, autoLaunch };
+        return { maxConcurrent: v, language: lang, theme, autoUpdate, autoLaunch, nexusBaseUrl, nexusApiKey, nexusAppId };
       }
       if (typeof v === 'number' && v >= 1 && v <= 10) {
-        return { maxConcurrent: v, language: 'en', theme, autoUpdate, autoLaunch };
+        return { maxConcurrent: v, language: 'en', theme, autoUpdate, autoLaunch, nexusBaseUrl, nexusApiKey, nexusAppId };
       }
       if (th !== undefined || au !== undefined || al !== undefined) {
-        return { ...DEFAULT_SETTINGS, theme, autoUpdate, autoLaunch };
+        return { ...DEFAULT_SETTINGS, theme, autoUpdate, autoLaunch, nexusBaseUrl, nexusApiKey, nexusAppId };
       }
     }
   } catch {}
@@ -92,6 +101,9 @@ interface SettingsContextValue {
   setTheme: (theme: ThemeMode) => void;
   setAutoUpdate: (v: boolean) => void;
   setAutoLaunch: (v: boolean) => void;
+  setNexusBaseUrl: (v: string) => void;
+  setNexusApiKey: (v: string) => void;
+  setNexusAppId: (v: string) => void;
 }
 
 function getInitialSettings(): Settings {
@@ -111,6 +123,9 @@ const SettingsContext = createContext<SettingsContextValue>({
   setTheme: () => {},
   setAutoUpdate: () => {},
   setAutoLaunch: () => {},
+  setNexusBaseUrl: () => {},
+  setNexusApiKey: () => {},
+  setNexusAppId: () => {},
 });
 
 export const SettingsProvider = ({ children }: { children: ReactNode }) => {
@@ -181,6 +196,18 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
     })();
   };
 
+  const setNexusBaseUrl = (v: string) => {
+    setSettings((prev) => ({ ...prev, nexusBaseUrl: v }));
+  };
+
+  const setNexusApiKey = (v: string) => {
+    setSettings((prev) => ({ ...prev, nexusApiKey: v }));
+  };
+
+  const setNexusAppId = (v: string) => {
+    setSettings((prev) => ({ ...prev, nexusAppId: v }));
+  };
+
   // on mount, sync persisted autoLaunch state to OS (ensures registry matches settings after update)
   useEffect(() => {
     void (async () => {
@@ -201,7 +228,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   return (
-    <SettingsContext.Provider value={{ settings, theme, resolvedTheme, setMaxConcurrent, setLanguage, setTheme, setAutoUpdate, setAutoLaunch }}>
+    <SettingsContext.Provider value={{ settings, theme, resolvedTheme, setMaxConcurrent, setLanguage, setTheme, setAutoUpdate, setAutoLaunch, setNexusBaseUrl, setNexusApiKey, setNexusAppId }}>
       {children}
     </SettingsContext.Provider>
   );

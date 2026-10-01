@@ -24,6 +24,7 @@ fn cmd_hidden<S: AsRef<std::ffi::OsStr>>(program: S) -> Command {
 }
 
 pub mod autostart;
+pub mod nexus;
 pub mod report;
 pub mod tools;
 pub mod versions;
