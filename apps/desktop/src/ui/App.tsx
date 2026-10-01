@@ -643,7 +643,6 @@ function AppContent() {
         : 'No internet connection. Please check your network and try again.';
       setError(msg);
       setStatus('Offline');
-      showToast(msg, 'error');
       return;
     }
 
@@ -713,11 +712,17 @@ function AppContent() {
         setStatus(nextAnalysis.available ? 'Media ready — select it from the list to configure' : 'Metadata unavailable');
       }
     } catch (caughtError) {
-      const msg = getFriendlyErrorMessage(caughtError, 'The link could not be analyzed. Please check it and try again.');
+      const raw = caughtError instanceof Error ? caughtError.message : String(caughtError);
+      const isAndroid = typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent);
+      // Inline UrlPanel card shows the error (with Try Again) — no duplicate toast.
+      const msg = (isAndroid && raw.toLowerCase().includes('yt-dlp runtime is not available'))
+        ? (language === 'bn'
+          ? 'এই ডিভাইসে ভিডিও বিশ্লেষণ টুল নেই। অনুগ্রহ করে ডেস্কটপ অ্যাপ ব্যবহার করুন।'
+          : 'Video analysis tools are not available on this device. Please use the desktop app.')
+        : getFriendlyErrorMessage(caughtError, 'The link could not be analyzed. Please check it and try again.');
       setError(msg);
       setLastAnalyzeResult(null);
       setStatus('Analysis failed');
-      showToast(msg, 'error');
     } finally {
       setIsLoading(false);
     }

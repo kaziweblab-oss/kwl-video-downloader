@@ -16,6 +16,7 @@ This file is the conversational memory layer for coding agents. Read it first, t
 - **Gates PASS:** tsc x4, vitest 67/67 (incl. new nexus-config + parity), cargo desktop 99/0/3 (8 new nexus tests), linux/macos/android `cargo check` clean.
 - **Pending:** v1.0.10 batch tagged + pushed (`f7d1d41`); user publishes Release.
 - **v1.0.10 PROVEN on API-26 emulator:** published APK installs, `Displayed MainActivity`, zero crash, full UI renders on frozen Chrome 69 (screenshot verified: title bar + URL panel + Analyze + hints). es2019 fix confirmed. Pending: user launcher-icon screenshot + Nexus connect + real-phone test.
+- **UI batch (uncommitted):** Android TitleBar hides min/max/close; analyze errors single inline card (toast dedupe) + honest Android missing-tools message; Settings duplicate titles removed, full output path, switcher focus rings. Gates: tsc x4, vitest 67, vite android build ok.
 
 ## Earlier sessions
 

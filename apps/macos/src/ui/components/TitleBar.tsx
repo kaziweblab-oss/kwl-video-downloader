@@ -15,6 +15,9 @@ export const TitleBar = ({ onMenuToggle }: { onMenuToggle?: () => void }) => {
   const { resolvedTheme } = useSettings();
   const [isMaximized, setIsMaximized] = useState(false);
   const [appVersion, setAppVersion] = useState('1.0.2');
+  // Desktop window controls (min/max/close) are meaningless on Android —
+  // the OS owns the window there. Branding + menu stay.
+  const isAndroid = typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent);
 
   useEffect(() => {
     let unlisten: (() => void) | undefined;
@@ -96,7 +99,8 @@ export const TitleBar = ({ onMenuToggle }: { onMenuToggle?: () => void }) => {
         <span className={`hidden sm:inline text-[10px] font-medium px-1.5 py-0.5 rounded ml-1 ${resolvedTheme === 'dark' ? 'bg-white/10 text-slate-400' : 'bg-slate-100 text-slate-500'}`}>v{appVersion}</span>
       </div>
 
-      {/* Right: window controls */}
+      {/* Right: window controls (desktop only — hidden on Android) */}
+      {!isAndroid && (
       <div className="flex items-stretch h-full shrink-0" style={{ WebkitAppRegion: 'no-drag' } as any}>
         <button
           type="button"
@@ -127,6 +131,7 @@ export const TitleBar = ({ onMenuToggle }: { onMenuToggle?: () => void }) => {
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 2l8 8M10 2L2 10" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>
         </button>
       </div>
+      )}
     </div>
   );
 };

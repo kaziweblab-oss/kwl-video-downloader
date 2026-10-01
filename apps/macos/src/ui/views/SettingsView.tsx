@@ -23,8 +23,8 @@ function ThemeSwitcher() {
             type="button"
             onClick={() => setTheme(m.key)}
             className={theme === m.key
-              ? `rounded-lg px-3 py-1.5 text-sm font-bold ${resolvedTheme === 'dark' ? 'bg-sky-400/20 text-sky-100' : 'bg-sky-100 text-sky-700'}`
-              : `rounded-lg px-3 py-1.5 text-sm font-bold ${resolvedTheme === 'dark' ? 'text-slate-300 hover:text-slate-100' : 'text-slate-600 hover:text-slate-800'}`}
+              ? `rounded-lg px-3 py-1.5 text-sm font-bold focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/70 ${resolvedTheme === 'dark' ? 'bg-sky-400/20 text-sky-100' : 'bg-sky-100 text-sky-700'}`
+              : `rounded-lg px-3 py-1.5 text-sm font-bold focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/70 ${resolvedTheme === 'dark' ? 'text-slate-300 hover:text-slate-100' : 'text-slate-600 hover:text-slate-800'}`}
           >
             {m.label}
           </button>
@@ -126,9 +126,7 @@ export const SettingsView = ({ outputDirectory = '', defaultOutputFolder = '', o
     <div className="space-y-5">
 
       <Panel>
-        <PanelHeader label={t.sectionGeneral} count={null} compact>
-          <h3 className="m-0 text-lg font-bold tracking-tight">{t.sectionGeneral}</h3>
-        </PanelHeader>
+        <PanelHeader label={t.sectionGeneral} count={null} compact />
 
         <div className="space-y-4">
           <div>
@@ -148,9 +146,12 @@ export const SettingsView = ({ outputDirectory = '', defaultOutputFolder = '', o
                         value={outputDirectory || 'C:\\Users\\Downloads\\KWL Video Downloader'}
                         onChange={(e) => onOutputDirectoryChange?.(e.target.value)}
                         placeholder="C:\Users\Downloads\KWL Video Downloader"
-                        className={`w-full min-w-[200px] flex-1 rounded-xl border px-4 py-[0.9rem] outline-none transition focus:border-sky-300/90 focus:shadow-[0_0_0_3px_rgba(56,189,248,0.18)] ${isDark ? 'border-slate-400/40 bg-slate-900/80 text-slate-50' : 'border-slate-300 bg-white text-slate-800 placeholder:text-slate-400'}`}
+                        title={outputDirectory || undefined}
+                        aria-label={t.defaultOutputFolder}
+                        className={`w-full min-w-[200px] flex-1 rounded-xl border px-4 py-[0.9rem] text-sm outline-none transition focus:border-sky-300/90 focus:shadow-[0_0_0_3px_rgba(56,189,248,0.18)] ${isDark ? 'border-slate-400/40 bg-slate-900/80 text-slate-50' : 'border-slate-300 bg-white text-slate-800 placeholder:text-slate-400'}`}
                       />
                     </div>
+                    <p className={`mt-1.5 text-xs break-all ${isDark ? 'text-slate-400' : 'text-slate-500'}`} title={outputDirectory || undefined}>{outputDirectory || 'C:\\Users\\Downloads\\KWL Video Downloader'}</p>
                     <button type="button" onClick={() => onBrowse?.()} aria-label={t.browse} title={t.browse} className={`shrink-0 rounded-xl border px-5 py-[0.9rem] text-sm font-bold transition ${isDark ? 'border-slate-400/30 bg-slate-800 text-slate-200 hover:border-sky-300/40 hover:bg-slate-700 hover:text-slate-50' : 'border-slate-300 bg-white text-slate-700 hover:border-sky-300 hover:bg-slate-50'}`}>{t.browse}</button>
                   </div>
                 </>
@@ -163,14 +164,14 @@ export const SettingsView = ({ outputDirectory = '', defaultOutputFolder = '', o
             <div className={`inline-flex rounded-[10px] border p-1 ${isDark ? 'border-slate-400/25 bg-slate-900/70' : 'border-slate-300 bg-white'}`}>
               <button
                 type="button"
-                className={language === 'en' ? `rounded-lg px-[0.7rem] py-[0.4rem] font-bold ${isDark ? 'bg-sky-400/20 text-sky-100' : 'bg-sky-100 text-sky-700'}` : `rounded-lg px-[0.7rem] py-[0.4rem] font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'}`}
+                className={language === 'en' ? `rounded-lg px-[0.7rem] py-[0.4rem] font-bold focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/70 ${isDark ? 'bg-sky-400/20 text-sky-100' : 'bg-sky-100 text-sky-700'}` : `rounded-lg px-[0.7rem] py-[0.4rem] font-bold focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/70 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}
                 onClick={() => setLanguage('en')}
               >
                 EN
               </button>
               <button
                 type="button"
-                className={language === 'bn' ? `rounded-lg px-[0.7rem] py-[0.4rem] font-bold ${isDark ? 'bg-sky-400/20 text-sky-100' : 'bg-sky-100 text-sky-700'}` : `rounded-lg px-[0.7rem] py-[0.4rem] font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'}`}
+                className={language === 'bn' ? `rounded-lg px-[0.7rem] py-[0.4rem] font-bold focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/70 ${isDark ? 'bg-sky-400/20 text-sky-100' : 'bg-sky-100 text-sky-700'}` : `rounded-lg px-[0.7rem] py-[0.4rem] font-bold focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/70 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}
                 onClick={() => setLanguage('bn')}
               >
                 BN
@@ -204,9 +205,7 @@ export const SettingsView = ({ outputDirectory = '', defaultOutputFolder = '', o
       </Panel>
 
       <Panel>
-        <PanelHeader label={t.sectionAdvanced} count={null} compact>
-          <h3 className="m-0 text-lg font-bold tracking-tight">{t.sectionAdvanced}</h3>
-        </PanelHeader>
+        <PanelHeader label={t.sectionAdvanced} count={null} compact />
 
         <div className="space-y-4">
           <div>
@@ -282,9 +281,7 @@ export const SettingsView = ({ outputDirectory = '', defaultOutputFolder = '', o
       </Panel>
 
       <Panel>
-        <PanelHeader label={t.sectionUpdates} count={null} compact>
-          <h3 className="m-0 text-lg font-bold tracking-tight">{t.sectionUpdates}</h3>
-        </PanelHeader>
+        <PanelHeader label={t.sectionUpdates} count={null} compact />
 
         <div className="space-y-4">
           <div className={`flex items-center justify-between gap-3 rounded-xl border px-4 py-3 max-[380px]:flex-col max-[380px]:items-stretch max-[380px]:gap-2.5 ${isDark ? 'border-slate-700/40 bg-slate-800/40' : 'border-slate-300 bg-white'}`}>
@@ -395,9 +392,7 @@ export const SettingsView = ({ outputDirectory = '', defaultOutputFolder = '', o
       </Panel>
 
       <Panel>
-        <PanelHeader label={t.nexusTitle} count={null} compact>
-          <h3 className="m-0 text-lg font-bold tracking-tight">{t.nexusTitle}</h3>
-        </PanelHeader>
+        <PanelHeader label={t.nexusTitle} count={null} compact />
 
         <div className="space-y-4">
           <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{t.nexusDesc}</p>

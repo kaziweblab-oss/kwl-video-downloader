@@ -24,6 +24,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - KWL Nexus connection: Settings panel (server URL + API key + App ID),
   silent startup ping + features sync, tutorial/feedback commands. Secrets
   stay in app settings — nothing baked into the binary.
+- Android TitleBar: min/max/close hidden on Android (OS owns the window);
+  desktop exe unchanged
+- Analyze errors: single inline card with Try Again (duplicate toast
+  removed); Android without runtime tools gets an honest
+  use-the-desktop-app message (EN+BN)
+- Settings General: duplicate section titles removed, output folder shows
+  full path (tooltip + wrapping subline), switcher focus rings
 - Updater `Downloading update...` overlay now shows live progress in all
   four apps: big percent + determinate bar + `downloaded / total` sizes
   from the updater `Started`/`Progress` events (EN+BN inline); unknown
