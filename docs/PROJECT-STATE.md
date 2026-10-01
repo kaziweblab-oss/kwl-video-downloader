@@ -4,7 +4,7 @@ CURRENT PHASE:
 v1.0.10 batch — ready to tag
 
 CURRENT TASK:
-Commit + `git tag v1.0.10` + push → CI green → publish Release → API-26 emulator: install, OPEN (render check), icon verify → phone launcher screenshot.
+v1.0.10 CI green + published → API-26 emulator PROVEN: install ok, `Displayed MainActivity`, zero crash, full UI renders on Chrome 69 (es2019 fix works). User: launcher icon screenshot + Nexus connect + phone test.
 
 COMPLETED:
 - Phase 0: Repository bootstrap
